@@ -5,9 +5,16 @@
         "source": "github",
         "repo": "thedotmack/claude-mem"
       }
+    },
+    "superpowers-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers-marketplace"
+      }
     }
   },
   "enabledPlugins": {
-    "claude-mem@thedotmack": true
+    "claude-mem@thedotmack": true,
+    "superpowers@superpowers-marketplace": true
   }
 }
