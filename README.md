@@ -7,6 +7,7 @@
 
 - **claude-mem** — постоянная память для Claude Code (сжатие контекста между сессиями). Маркетплейс: `thedotmack/claude-mem`.
 - **superpowers** — библиотека базовых скиллов от Jesse Vincent: TDD, отладка, паттерны совместной работы. Маркетплейс: `obra/superpowers-marketplace`.
+- **impeccable** — дизайн-скилл от Paul Bakaus для фронтенда: аудит, критика и полировка интерфейсов, 23 команды (`/impeccable polish`, `/impeccable audit` и др.). Маркетплейс: `pbakaus/impeccable`.
 
 ## Скиллы
 
