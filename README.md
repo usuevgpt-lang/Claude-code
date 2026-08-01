@@ -49,3 +49,10 @@
   ```
   claude mcp add --scope user perplexity --env PERPLEXITY_API_KEY="ваш_ключ" -- npx -y @perplexity-ai/mcp-server
   ```
+
+- **glif** (`.mcp.json`) — MCP-сервер платформы [glif.app](https://glif.app): запуск AI-воркфлоу (глифов) с произвольными входными данными, поиск готовых глифов и агентов. Подключается через официальный хостинг Glif (`https://glif.app/api/mcp`) — ключ API не нужен, при первом обращении Claude Code откроет браузер для входа в аккаунт Glif (OAuth).
+
+  Чтобы glif был доступен в любой папке, а не только в этом репозитории:
+  ```
+  claude mcp add --scope user --transport http glif "https://glif.app/api/mcp"
+  ```
