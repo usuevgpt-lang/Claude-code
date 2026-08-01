@@ -31,3 +31,21 @@
 
 - **find-skills** (`.claude/skills/find-skills/`) — поиск и установка скиллов из открытой экосистемы agent skills (skills.sh). Источник: [vercel-labs/skills](https://github.com/vercel-labs/skills).
 - **task-observer** (`.claude/skills/task-observer/`) — мета-скилл «One Skill to Rule Them All»: наблюдает за рабочими сессиями, фиксирует исправления и повторяющиеся паттерны и превращает их в улучшения скиллов. Источник: [rebelytics/one-skill-to-rule-them-all](https://github.com/rebelytics/one-skill-to-rule-them-all) (CC BY 4.0, автор Eoghan Henn).
+
+## MCP-серверы
+
+- **perplexity** (`.mcp.json`) — официальный MCP-сервер Perplexity (пакет `@perplexity-ai/mcp-server`), даёт Claude Code инструменты поиска и research в реальном времени через Perplexity API. Подключается автоматически, когда Claude Code открыт в этой папке — при первом запуске нужно будет подтвердить доверие серверу.
+
+  Нужен ключ API с [console.perplexity.ai](https://console.perplexity.ai). Задайте его переменной окружения `PERPLEXITY_API_KEY` (в `.mcp.json` ключ не хранится, он подставляется из окружения):
+
+  - Windows (PowerShell), сохранить навсегда для своего пользователя:
+    ```
+    [Environment]::SetEnvironmentVariable('PERPLEXITY_API_KEY', 'ваш_ключ', 'User')
+    ```
+    (перезапустите терминал/Claude Code, чтобы переменная подхватилась)
+  - macOS/Linux: добавьте `export PERPLEXITY_API_KEY=ваш_ключ` в `~/.zshrc` или `~/.bashrc`.
+
+  Чтобы Perplexity был доступен не только в этом репозитории, а в любой папке, зарегистрируйте сервер на уровне пользователя:
+  ```
+  claude mcp add --scope user perplexity --env PERPLEXITY_API_KEY="ваш_ключ" -- npx -y @perplexity-ai/mcp-server
+  ```
