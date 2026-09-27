@@ -13,6 +13,12 @@
       "skillPath": "skills/21st-cli-use/SKILL.md",
       "computedHash": "7ef87a695824a4719a8f1f211b72bbe03952a1fa4d40e0fd4c472d4eb1cbee0a"
     },
+    "21st-design-sync": {
+      "source": "21st-dev/skill",
+      "sourceType": "github",
+      "skillPath": "skills/21st-design-sync/SKILL.md",
+      "computedHash": "668dee53bbf315073de60504ff0c74b8fc2bb3a41dc55e3a128d19351dbeb842"
+    },
     "21st-registry": {
       "source": "21st-dev/skill",
       "sourceType": "github",
