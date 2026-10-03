@@ -1,0 +1,13 @@
+{"gas": {"rho_st": {"value": 0.68, "source": "паспорт качества газа"}, "composition": {"Methane": 0.96, "Ethane": 0.025, "Propane": 0.005, "Nitrogen": 0.007, "CarbonDioxide": 0.003}},
+ "z_method": "gazprom",
+ "cases": [
+  {"type": "properties", "p_abs": 5.5, "t": 10, "Q_st": 50000},
+  {"type": "velocity", "Q_st": 50000, "p_abs": 5.5, "t": 10, "d_in": 199, "w_max": 25},
+  {"type": "select_dn", "Q_st": 50000, "p_g": 1.2, "t": 5, "w_max": 25, "pipes": [{"name":"DN150","D":159,"s":6},{"name":"DN200","D":219,"s":8},{"name":"DN250","D":273,"s":8},{"name":"DN300","D":325,"s":8}]},
+  {"type": "pressure_drop", "Q_st": 50000, "p_abs": 5.5, "t": 10, "d_in": 199, "L": 50, "roughness": 0.1, "mu": 1.15e-5, "sum_zeta": 3.5},
+  {"type": "pressure_drop", "name": "длинный", "Q_st": 50000, "p_abs": 1.2, "t": 10, "d_in": 199, "L": 20000, "roughness": 0.1, "mu": 1.15e-5},
+  {"type": "jt_cooling", "p1_abs": 5.5, "p2_abs": 1.3, "t1": 10, "t2_min": -10},
+  {"type": "jt_cooling", "name": "через mu", "p1_abs": 5.5, "p2_abs": 1.3, "t1": 10, "mu_jt": {"value": 4.5, "source": "оценка"}},
+  {"type": "preheat", "Q_st": 50000, "cp": 2.3, "t_in": 5, "t_out": 25, "eta": 0.85},
+  {"type": "regulator_kv", "Q_st": 50000, "p1_abs": 5.5, "p2_abs": 1.3, "t1": 25, "kvs": 140, "kv_margin": 1.2}
+ ]}
