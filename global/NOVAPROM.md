@@ -55,6 +55,7 @@
 | Позиционирование, JTBD, конкуренты, исследования клиентов | плагин `novaprom-marketing` (product-marketing, jtbd-industrial…) | `marketing-strategist` |
 | Bitrix24 (коробка): CRM, процессы, права, аудит | `novaprom-bitrix-audit` (+ `lead-triage` для лидов) | `bitrix-auditor` |
 | Незнакомый код (PHP/JS/HTML/CSS, MODX, Bitrix) | `explain-code` | `web-developer` |
+| Разработка кода: спецификация, план, тесты, ревью, выпуск (в проектах кода) | плагин `agent-skills` (`/agent-skills:spec`, `:plan`, `:review`…) | `web-developer` |
 | Найти готовый Skill (skills.sh) | `find-skills` → `novaprom-tool-vetting` | — (основная сессия) |
 | Рекомендации по настройке Claude Code для проекта | плагин `claude-code-setup` | — (основная сессия) |
 | Новый сторонний инструмент | `novaprom-tool-vetting` | — (основная сессия) |

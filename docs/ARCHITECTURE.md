@@ -178,6 +178,7 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
 |---|---|---|---|---|
 | frontend-design | Дизайн интерфейсов | anthropics/claude-plugins-official, Apache-2.0 | **установить** | установка |
 | claude-code-setup | Анализ проекта и рекомендации по автоматизации Claude Code (hooks, skills, MCP, субагенты); только чтение | anthropics/claude-plugins-official, Apache-2.0 | **включён** (2026-10-03) | — |
+| agent-skills | Процесс разработки кода: spec → plan → build → test → review → ship (25 навыков-инструкций, субагенты code-reviewer, security-auditor, test-engineer, web-performance-auditor, команды `/agent-skills:spec`, `:plan`, `:build`, `:test`, `:review`, `:code-simplify`, `:ship`, `:constraints`, `:webperf`) | addyosmani/agent-skills 0.6.12, MIT; через маркетплейс `novaprom`, закреплён на коммите `a06bc63` | **установлен** (2026-10-03), выключен глобально, включается в проектах кода | включение в проекте |
 | novaprom-marketing | Маркетинг/SEO | этот репозиторий (локальный маркетплейс `novaprom`) | установить (в проектах сайта/маркетинга) | установка |
 | Bitrix24 DEV MCP (документация) | Справка по REST API | официальный Bitrix24, `https://mcp-dev.bitrix24.tech/mcp`, без доступа к данным | рекомендовано | подключение |
 | chrome-devtools-mcp 1.10.1 | QA: консоль, сеть, трассы, Lighthouse | Google, Apache-2.0; флаги `--isolated --no-usage-statistics --no-performance-crux` | рекомендовано | подключение; управляет браузером |
@@ -234,8 +235,8 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
    - подключает правила `global/NOVAPROM.md` через `%USERPROFILE%\.claude\CLAUDE.md`;
    - убирает выведенный из эксплуатации task-observer (в ту же папку резервных копий);
    - объединяет `docs/settings.proposed.json` с `%USERPROFILE%\.claude\settings.json`: хук, правила `ask`/`deny`,
-     отключение телеметрии, claude-mem, frontend-design и novaprom-marketing — включены, superpowers, impeccable —
-     выключены (резервная копия `settings.json.bak-<время>`).
+     отключение телеметрии, claude-mem, frontend-design, claude-code-setup и novaprom-marketing — включены, superpowers,
+     impeccable, agent-skills — выключены (резервная копия `settings.json.bak-<время>`).
 3. Перезапустить Claude Code, подтвердить доверие маркетплейсам (плагины установятся сами; вручную:
    `/plugin install frontend-design@claude-plugins-official`, `/plugin install novaprom-marketing@novaprom`).
 4. claude-mem — память между сессиями. Ставится вместе с остальными плагинами (маркетплейс `thedotmack`,
@@ -256,11 +257,17 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
      `"CLAUDE_MEM_SKIP_TOOLS": "ListMcpResourcesTool,SlashCommand,Skill,TodoWrite,AskUserQuestion,Read,WebFetch"`;
    - обновлять версию — только после повторной проверки (`novaprom-tool-vetting`), меняя `ref` маркетплейса;
    - не включать соседний плагин `claude-mem-cowork` из того же маркетплейса (передаёт данные в облако cmem.ai).
-5. superpowers / impeccable — только в проектах кода (сайт, скрипты). В папке такого проекта создать
+5. agent-skills / superpowers / impeccable — только в проектах кода (сайт, скрипты). В папке такого проекта создать
    `.claude\settings.local.json`:
    ```json
-   { "enabledPlugins": { "superpowers@superpowers-marketplace": true, "impeccable@impeccable": true } }
+   { "enabledPlugins": { "agent-skills@novaprom": true, "impeccable@impeccable": true } }
    ```
+   agent-skills и superpowers дублируют друг друга (спецификация, план, TDD, ревью, отладка, git) — включать
+   **один** из них; рекомендуется agent-skills: не подключает хуков (у superpowers SessionStart-хук «правило 1 %»),
+   без телеметрии, закреплён на проверенном коммите. Его скрипты-хуки `hooks/sdd-cache-*.sh` (кэш WebFetch с
+   обращением к сайтам документации) и `simplify-ignore.sh` плагином не подключаются — не подключать их вручную без
+   отдельной проверки. Навык `browser-testing-with-devtools` работает только с MCP chrome-devtools (п. 8).
+   Обновление agent-skills — новая проверка `novaprom-tool-vetting`, затем замена `sha` в `.claude-plugin/marketplace.json`.
 6. Защищённые папки (архив КД, выгрузка сайта, расчёты) — по одной на строку в
    `%USERPROFILE%\.claude\novaprom-protected-paths.txt`.
 7. Python-пакеты (лучше в venv): `python -m pip install CoolProp openpyxl "ezdxf==1.4.4" matplotlib "Pillow>=12,<13"`.
@@ -299,6 +306,8 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
   (find-skills — с правками безопасности, см. его `NOTICE.md`; claude-mem — закреплён на v13.28.0, с мерами
   защиты — раздел 7);
 - superpowers и impeccable — выключены глобально, включаются в проектах кода;
+- AnyDoc (локальное чтение документов) и claude-code-setup — установлены; agent-skills (addyosmani) — установлен
+  через маркетплейс `novaprom` с закреплённым коммитом, выключен глобально, включается в проектах кода;
 - настройки безопасности применены (репозиторий; на ПК — установочным скриптом).
 
 Ждут вашего решения:

@@ -115,6 +115,7 @@
     "impeccable@impeccable": false,
     "frontend-design@claude-plugins-official": true,
     "novaprom-marketing@novaprom": true,
-    "claude-code-setup@claude-plugins-official": true
+    "claude-code-setup@claude-plugins-official": true,
+    "agent-skills@novaprom": false
   }
 }

@@ -101,8 +101,8 @@ foreach ($old in @('task-observer')) {
 }
 
 # 6. Settings: security hook, ask/deny rules, telemetry off, plugins
-#    (claude-mem, frontend-design and novaprom-marketing on;
-#    superpowers and impeccable off globally - enable them per code project).
+#    (claude-mem, frontend-design, claude-code-setup and novaprom-marketing on;
+#    agent-skills, superpowers and impeccable off globally - enable them per code project).
 #    The merge keeps everything else in settings.json and makes a backup first.
 $settingsPath = Join-Path $claudeDir 'settings.json'
 if ($python) {
@@ -121,8 +121,9 @@ Write-Host '     novaprom-marketing install automatically; or: /plugin install f
 Write-Host '  2. claude-mem (pinned to v13.28.0, telemetry off, secret redaction on) keeps a local memory of'
 Write-Host '     every session in %USERPROFILE%\.claude-mem. To keep customer-document folders out of it, set'
 Write-Host '     CLAUDE_MEM_EXCLUDED_PROJECTS (comma-separated folder globs) - see docs\ARCHITECTURE.md, section 7.'
-Write-Host '  3. superpowers / impeccable: enable only in a code project (website, scripts) - add to that project''s'
-Write-Host '     .claude\settings.local.json:  { "enabledPlugins": { "superpowers@superpowers-marketplace": true } }'
+Write-Host '  3. agent-skills (or superpowers - pick one, they overlap) / impeccable: enable only in a code project'
+Write-Host '     (website, scripts) - add to that project''s .claude\settings.local.json:'
+Write-Host '     { "enabledPlugins": { "agent-skills@novaprom": true } }'
 Write-Host '  4. List protected folders (one path per line) in %USERPROFILE%\.claude\novaprom-protected-paths.txt'
 Write-Host '  5. Python packages for calculations:  python -m pip install CoolProp openpyxl ezdxf==1.4.4 matplotlib'
 Write-Host "Backups of replaced files: $backupDir"

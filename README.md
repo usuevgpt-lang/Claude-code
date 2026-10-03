@@ -37,6 +37,8 @@ python -m unittest discover -s tests -p "test_*.py"
 
 ## Сторонние плагины
 - **frontend-design** и **claude-code-setup** (официальные, Anthropic) и **novaprom-marketing** (этот репозиторий) — включены.
+- **agent-skills** (`addyosmani/agent-skills` 0.6.12, MIT; через маркетплейс `novaprom`, закреплён на коммите `a06bc63`) —
+  процесс разработки кода (spec → plan → build → test → review → ship); выключен глобально, включается в проектах кода.
 - **superpowers** (`obra/superpowers-marketplace`) и **impeccable** (`pbakaus/impeccable`) — выключены глобально,
   включаются только в проектах кода (сайт, скрипты) через `.claude/settings.local.json` проекта.
 - **claude-mem** (`thedotmack/claude-mem`, закреплён на v13.28.0) — включён, телеметрия выключена, скрытие секретов
