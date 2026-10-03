@@ -9,7 +9,7 @@
     "CLAUDE_MEM_TELEMETRY_ERRORS": "0",
     "CLAUDE_MEM_REDACT_ENABLED": "true"
   },
-  "skillListingBudgetFraction": 0.06,
+  "skillListingBudgetFraction": 0.08,
   "permissions": {
     "ask": [
       "Bash(rm -rf *)",

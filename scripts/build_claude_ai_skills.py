@@ -69,8 +69,8 @@ def convert_skill_md(text: str) -> str:
             "НОРМАТИВ → ФОРМУЛА → ПОДСТАНОВКА → РЕЗУЛЬТАТ → ПРОВЕРКА; давление с пометкой «изб.»/«абс.».")
     if "${CLAUDE_SKILL_DIR}" in body:
         note += ("\n> `${CLAUDE_SKILL_DIR}` в командах — папка этого навыка (где лежит этот SKILL.md); если переменная "
-                 "не подставлена, используйте фактический путь к ней. Недостающие Python-пакеты ставить `pip install` "
-                 "(CoolProp, ezdxf, openpyxl, matplotlib, Pillow).")
+                 "не подставлена, используйте фактический путь к ней. Недостающие Python-пакеты (CoolProp, ezdxf, openpyxl, "
+                 "matplotlib, Pillow) ставить `pip install`; в чате claude.ai — `pip install --break-system-packages`.")
     front = yaml.safe_dump({"name": name, "description": desc}, allow_unicode=True, sort_keys=False, width=100000)
     return f"---\n{front}---\n\n{note}\n\n{body.lstrip()}"
 
