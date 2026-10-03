@@ -172,7 +172,7 @@ def main(argv=None) -> int:
     ap.add_argument("--texts", type=int, default=50, help="сколько текстов вывести")
     a = ap.parse_args(argv)
     r, doc = inspect(a.dxf, a.texts)
-    sys.stdout.reconfigure(encoding="utf-8")
+    getattr(sys.stdout, "reconfigure", lambda **_: None)(encoding="utf-8")
     print(to_md(r))
     if a.json:
         with open(a.json, "w", encoding="utf-8") as f:

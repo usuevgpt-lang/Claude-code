@@ -200,7 +200,7 @@ def main(argv=None) -> int:
     p.add_argument("--Rh", type=float, required=True, help="радиус магистрали (по поверхности контакта)")
     p.add_argument("--e", type=float, default=0.0, help="смещение осей")
     a = ap.parse_args(argv)
-    sys.stdout.reconfigure(encoding="utf-8")
+    getattr(sys.stdout, "reconfigure", lambda **_: None)(encoding="utf-8")
     if a.cmd == "mitre" and a.D is None:
         a.D = neutral(a, "D")
     {"cone": cmd_cone, "mitre": cmd_mitre, "gore": cmd_gore, "saddle": cmd_saddle}[a.cmd](a)

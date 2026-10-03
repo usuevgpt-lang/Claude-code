@@ -236,7 +236,7 @@ def main(argv=None) -> int:
             f.write(md)
         print(f"Отчёт сохранён: {a.out}")
     else:
-        sys.stdout.reconfigure(encoding="utf-8")
+        getattr(sys.stdout, "reconfigure", lambda **_: None)(encoding="utf-8")
         print(md)
     if a.xlsx:
         to_xlsx(data, r, a.xlsx)

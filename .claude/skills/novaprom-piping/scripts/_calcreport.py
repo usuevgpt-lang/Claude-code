@@ -198,6 +198,6 @@ def emit(reports: list[CalcReport], opts: dict) -> int:
             f.write(text)
         print(f"Отчёт сохранён: {out}")
     else:
-        sys.stdout.reconfigure(encoding="utf-8")
+        getattr(sys.stdout, "reconfigure", lambda **_: None)(encoding="utf-8")
         print(text)
     return 0 if all(r.verdict() != "НЕ ВЫПОЛНЕНО" for r in reports) else 2

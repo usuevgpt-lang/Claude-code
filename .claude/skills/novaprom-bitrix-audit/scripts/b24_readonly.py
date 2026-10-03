@@ -141,7 +141,7 @@ def main(argv=None) -> int:
             f.write(text)
         print(f"Сохранено: {a.out} (записей: {count if count is not None else 'объект'}, страниц: {pages})")
     else:
-        sys.stdout.reconfigure(encoding="utf-8")
+        getattr(sys.stdout, "reconfigure", lambda **_: None)(encoding="utf-8")
         print(text)
     return 0
 

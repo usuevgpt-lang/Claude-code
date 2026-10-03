@@ -158,7 +158,7 @@ def main() -> int:
     decision, reason = res
     out = {"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": decision,
                                   "permissionDecisionReason": reason}}
-    sys.stdout.reconfigure(encoding="utf-8")
+    getattr(sys.stdout, "reconfigure", lambda **_: None)(encoding="utf-8")
     print(json.dumps(out, ensure_ascii=False))
     return 0
 
