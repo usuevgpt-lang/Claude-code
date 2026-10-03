@@ -3,7 +3,7 @@
 
 Берёт docs/settings.proposed.json и добавляет в целевой файл (по умолчанию ~/.claude/settings.json):
   - env — ключи из предложения (существующие значения пользователя с тем же именем заменяются);
-  - skillListingBudgetFraction — только если не задан;
+  - skillListingBudgetFraction — если не задан или меньше предложенного (иначе описания навыков сокращаются);
   - permissions.ask / permissions.deny — объединение без дублей (allow не трогается);
   - hooks.PreToolUse — хуки НОВАПРОМ добавляются, если их ещё нет (распознаются по novaprom_guard);
   - extraKnownMarketplaces — добавляются или обновляются (источник, закреплённая версия);
@@ -51,9 +51,10 @@ def merge(cur: dict, prop: dict, disable: list[str], drop: list[str]) -> tuple[d
     if env:
         out["env"] = env
 
-    if "skillListingBudgetFraction" in prop and "skillListingBudgetFraction" not in out:
-        out["skillListingBudgetFraction"] = prop["skillListingBudgetFraction"]
-        log.append(f"skillListingBudgetFraction = {prop['skillListingBudgetFraction']}")
+    key = "skillListingBudgetFraction"
+    if key in prop and not (isinstance(out.get(key), (int, float)) and out[key] >= prop[key]):
+        out[key] = prop[key]   # меньший бюджет сокращает описания навыков в списке — выбор навыка ухудшается
+        log.append(f"{key} = {prop[key]}")
 
     perms = dict(out.get("permissions") or {})
     for kind in ("ask", "deny"):

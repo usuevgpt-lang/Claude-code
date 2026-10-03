@@ -61,7 +61,7 @@ MAIN → инженерные субагенты (параллельно) → н
 | docs, google-workspace, morning, import-memory | навыки claude.ai | Anthropic | включены | Официальные | — | Оставить |
 | Коннекторы: Gmail, Google Calendar, Google Drive, Lucid, Canva, Gamma, SlidesGPT, PandaDoc, GitHub, Claude Docs | claude.ai | сторонние/официальные | подключены | Drive сейчас без нужных прав (чтение файлов не работает) | **Gamma / SlidesGPT / Canva / pptx** — пересекаются по презентациям; PandaDoc — по КП | Основной для презентаций — `pptx`; Gamma — быстрые черновики (не конфиденциальное); **SlidesGPT и PandaDoc — отключить**, если не используются; Drive — переподключить с правами чтения |
 | Хуки | `~/.claude/settings.json` (облако) | среда Claude Code | Stop-хук проверки git | — | — | Без изменений |
-| `scripts/setup-windows.ps1` | репо | — | включал 3 плагина на уровне пользователя; settings.json с BOM | — | — | Переписан (раздел 7): навыки, агенты, хук, правила, слияние настроек, вывод из эксплуатации старых инструментов |
+| `scripts/setup-windows.ps1` | репо | — | включал 3 плагина на уровне пользователя; settings.json с BOM | — | — | Заменён общим установщиком `scripts/install_novaprom.py` (запуск — `scripts/install-windows.cmd`, раздел 7): навыки, агенты, хук, правила, слияние настроек, вывод из эксплуатации старых инструментов, проверка |
 | Реальные проекты | — | — | **недоступны**: в контейнере только репо конфигурации, Google Drive без прав | — | — | Профиль работы построен по вашему описанию и публичному сайту novaprom.ru |
 
 Сайт novaprom.ru: **MODX Revolution** (не Bitrix), Bootstrap 4.5.3, Raleway, Яндекс.Метрика; 7 разделов каталога.
@@ -221,25 +221,72 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
 > ваших настроек, резервная копия). Эталон — `docs/settings.proposed.json`. Хук субагента bitrix-auditor работает
 > независимо от этих настроек.
 
-## 7. Установка на рабочий ПК (Windows)
+## 7. Установка на рабочий ПК (Windows) и другие компьютеры
 
-1. Установить Python 3.11+ (python.org, «Add python.exe to PATH») — он нужен расчётным скриптам и хуку.
-2. Клонировать репозиторий и запустить:
+После установки навыки, субагенты, правила маршрутизации и хук действуют **во всех проектах** на ПК (Claude Code
+CLI и вкладка Code приложения Claude): Claude сам выбирает навык по описанию задачи. Откуда что берётся:
+
+| Что | Как попадает на ПК |
+|---|---|
+| 30 навыков этого репозитория (`novaprom-*`, deep-research, explain-code, anydoc, find-skills, svg-icons, web-assets…) | установщик копирует в `%USERPROFILE%\.claude\skills` |
+| 18 субагентов | установщик → `%USERPROFILE%\.claude\agents` |
+| Правила и маршрутизация `global/NOVAPROM.md`, хук безопасности | установщик → `%USERPROFILE%\.claude\novaprom`, `…\hooks`; импорт строкой из `%USERPROFILE%\.claude\CLAUDE.md` |
+| Плагины novaprom-marketing (16 навыков, 2 субагента) и agent-skills | маркетплейс `novaprom` — этот репозиторий, ветка **`main`**: ставятся сами при запуске Claude Code |
+| Плагины frontend-design, claude-code-setup, claude-mem | официальный маркетплейс и `thedotmack` — ставятся сами |
+| docx, xlsx, pptx, pdf, skill-creator, canvas-design, mcp-builder и ваши навыки claude.ai (lead-triage, humanizer) | синхронизируются из аккаунта claude.ai: вход в Claude Code аккаунтом Claude (`/login`, не API-ключ), навыки включены в claude.ai → Settings → Capabilities; в `/plugin` видны как `…@synced` |
+
+Порядок установки:
+1. Установить Python 3.11+ (python.org, отметить «Add python.exe to PATH») — нужен установщику, хуку и расчётам;
+   Node.js LTS (nodejs.org) — для anydoc, svgo, find-skills; Git — для обновлений.
+2. Получить репозиторий:
    ```powershell
    git clone https://github.com/usuevgpt-lang/Claude-code.git D:\Claude-code
-   powershell -ExecutionPolicy Bypass -File D:\Claude-code\scripts\setup-windows.ps1
    ```
-   Скрипт:
-   - копирует навыки, субагентов и хук в `%USERPROFILE%\.claude` (заменяемые папки переносит в
-     `%USERPROFILE%\.claude\novaprom-backups\<время>`);
-   - подключает правила `global/NOVAPROM.md` через `%USERPROFILE%\.claude\CLAUDE.md`;
-   - убирает выведенный из эксплуатации task-observer (в ту же папку резервных копий);
-   - объединяет `docs/settings.proposed.json` с `%USERPROFILE%\.claude\settings.json`: хук, правила `ask`/`deny`,
-     отключение телеметрии, claude-mem, frontend-design, claude-code-setup и novaprom-marketing — включены, superpowers,
-     impeccable, agent-skills — выключены (резервная копия `settings.json.bak-<время>`).
-3. Перезапустить Claude Code, подтвердить доверие маркетплейсам (плагины установятся сами; вручную:
-   `/plugin install frontend-design@claude-plugins-official`, `/plugin install novaprom-marketing@novaprom`).
-4. claude-mem — память между сессиями. Ставится вместе с остальными плагинами (маркетплейс `thedotmack`,
+   (без Git: на GitHub «Code → Download ZIP» и распаковать в `D:\Claude-code`).
+3. Запустить **`D:\Claude-code\scripts\install-windows.cmd`** (двойной щелчок). Он обновляет клон (`git pull`) и
+   запускает `setup-windows.ps1` → `scripts/install_novaprom.py` (один установщик для Windows, macOS, Linux, облака):
+   - копирует навыки, субагентов, хук и `NOVAPROM.md` в `%USERPROFILE%\.claude`; одинаковые файлы не трогает,
+     изменённые перед заменой переносит в `%USERPROFILE%\.claude\novaprom-backups\<время>` (не удаляет);
+     ваши собственные навыки в `skills\` не трогает;
+   - подключает правила строкой импорта в `%USERPROFILE%\.claude\CLAUDE.md` (UTF-8/UTF-16/BOM читаются, копия `.bak`);
+   - убирает выведенный из эксплуатации task-observer (в папку резервных копий);
+   - вливает `docs/settings.proposed.json` в `%USERPROFILE%\.claude\settings.json` (`scripts/merge_settings.py`,
+     копия `.bak`): хук, правила `ask`/`deny`, отключение телеметрии, бюджет списка навыков; claude-mem,
+     frontend-design, claude-code-setup и novaprom-marketing — включены, superpowers, impeccable, agent-skills —
+     выключены; остальные ваши настройки сохраняются;
+   - спрашивает, поставить ли Python-пакеты расчётов (`scripts/requirements-novaprom.txt`, `pip install --user`) —
+     только после ответа «y»;
+   - в конце печатает проверку: `[OK]` — на месте, `[!]` — желательно поправить, `[X]` — установка не завершена.
+   Повторный запуск безопасен. Только проверка, без изменений: `install-windows.cmd -Check`.
+4. Перезапустить Claude Code, подтвердить доверие маркетплейсам (плагины установятся сами; вручную:
+   `/plugin install novaprom-marketing@novaprom`). Проверить: `/skills`, `/agents`, `/hooks`, `/plugin`.
+5. **Обновление:** новые и исправленные навыки (в том числе сделанные в облачных сессиях) попадают на ПК после
+   слияния их PR в `main` и повторного запуска `install-windows.cmd`.
+
+**Бюджет списка навыков.** Claude видит список навыков с описаниями и по нему выбирает нужный. Под список отводится
+доля окна контекста `skillListingBudgetFraction` (в Claude Code по умолчанию 0,01): бюджет = окно (200 тыс. токенов)
+× 4 символа × доля. Описания навыков на ПК (этот репозиторий, маркетинг, claude.ai, встроенные) — около 47 тыс.
+символов; при доле 0,02 бюджет 16 тыс., и Claude Code показывает часть навыков **только по имени**, без описания —
+выбор навыка ухудшается. Поэтому задано **0,06** (48 тыс. символов); фактический расход — размер списка (около
+12 тыс. токенов на запрос, кэшируется). Установщик поднимает меньшее значение до 0,06, большее не трогает. В проекте
+кода с agent-skills (+25 навыков) — дополнительно `"skillListingBudgetFraction": 0.08` в `.claude\settings.local.json`.
+Тест `tests/test_install.py` проверяет, что описания помещаются в бюджет.
+
+**macOS / Linux:** `python3 scripts/install_novaprom.py`, затем
+`python3 -m pip install --user -r scripts/requirements-novaprom.txt`.
+
+**Облачные сессии (claude.ai/code).** В сессиях по этому репозиторию навыки и субагенты берутся из самого
+репозитория — ничего делать не нужно. Чтобы они были и в сессиях по другим репозиториям, в настройках облачной
+среды (меню среды в заголовке сессии → Edit → Setup script) добавить:
+```bash
+git clone --depth 1 https://github.com/usuevgpt-lang/Claude-code.git "$HOME/novaprom-config" \
+  && python3 "$HOME/novaprom-config/scripts/install_novaprom.py"
+```
+В первой сессии проверить: `python3 ~/novaprom-config/scripts/install_novaprom.py --check`, `/skills`, `/hooks`.
+Навыки уровня пользователя важнее одноимённых навыков проекта: в сессиях по самому репозиторию конфигурации копия
+из `main` перекрывает версии навыков из рабочей ветки — при доработке навыков в этой среде setup script отключать.
+
+6. claude-mem — память между сессиями. Ставится вместе с остальными плагинами (маркетплейс `thedotmack`,
    закреплён на теге `v13.28.0`). Учтите:
    - он сохраняет полный ввод и вывод **каждого** вызова инструментов (в том числе прочитанные документы) в
      `%USERPROFILE%\.claude-mem\claude-mem.db` без срока хранения; в фоне делает дополнительные вызовы модели
@@ -257,7 +304,7 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
      `"CLAUDE_MEM_SKIP_TOOLS": "ListMcpResourcesTool,SlashCommand,Skill,TodoWrite,AskUserQuestion,Read,WebFetch"`;
    - обновлять версию — только после повторной проверки (`novaprom-tool-vetting`), меняя `ref` маркетплейса;
    - не включать соседний плагин `claude-mem-cowork` из того же маркетплейса (передаёт данные в облако cmem.ai).
-5. agent-skills / superpowers / impeccable — только в проектах кода (сайт, скрипты). В папке такого проекта создать
+7. agent-skills / superpowers / impeccable — только в проектах кода (сайт, скрипты). В папке такого проекта создать
    `.claude\settings.local.json`:
    ```json
    { "enabledPlugins": { "agent-skills@novaprom": true, "impeccable@impeccable": true } }
@@ -266,18 +313,17 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
    **один** из них; рекомендуется agent-skills: не подключает хуков (у superpowers SessionStart-хук «правило 1 %»),
    без телеметрии, закреплён на проверенном коммите. Его скрипты-хуки `hooks/sdd-cache-*.sh` (кэш WebFetch с
    обращением к сайтам документации) и `simplify-ignore.sh` плагином не подключаются — не подключать их вручную без
-   отдельной проверки. Навык `browser-testing-with-devtools` работает только с MCP chrome-devtools (п. 8).
+   отдельной проверки. Навык `browser-testing-with-devtools` работает только с MCP chrome-devtools (п. 9).
    Обновление agent-skills — новая проверка `novaprom-tool-vetting`, затем замена `sha` в `.claude-plugin/marketplace.json`.
-6. Защищённые папки (архив КД, выгрузка сайта, расчёты) — по одной на строку в
+8. Защищённые папки (архив КД, выгрузка сайта, расчёты) — по одной на строку в
    `%USERPROFILE%\.claude\novaprom-protected-paths.txt`.
-7. Python-пакеты (лучше в venv): `python -m pip install CoolProp openpyxl "ezdxf==1.4.4" matplotlib "Pillow>=12,<13"`.
-8. MCP (по желанию):
+9. MCP (по желанию):
    ```powershell
    claude mcp add --transport http b24-dev-mcp https://mcp-dev.bitrix24.tech/mcp
    claude mcp add chrome-devtools --scope user -- cmd /c npx -y chrome-devtools-mcp@1.10.1 --isolated --no-usage-statistics --no-performance-crux
    ```
-9. Проверка: в Claude Code — `/skills`, `/agents`, `/hooks`; в репозитории — `python scripts/validate_config.py`
-   и `python -m unittest discover -s tests -p "test_*.py"`.
+10. Проверка: в Claude Code — `/skills`, `/agents`, `/hooks`, `/plugin`; установка — `install-windows.cmd -Check`;
+    репозиторий — `python scripts/validate_config.py` и `python -m unittest discover -s tests -p "test_*.py"`.
 
 ## 8. Как пользоваться (примеры запросов)
 

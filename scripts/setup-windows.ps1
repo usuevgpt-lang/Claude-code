@@ -1,129 +1,66 @@
 # Installs the NOVAPROM Claude Code environment for the current Windows user.
-# Skills, subagents and the safety hook are copied to %USERPROFILE%\.claude,
-# the routing rules (global/NOVAPROM.md) are imported from %USERPROFILE%\.claude\CLAUDE.md,
-# Replaced skills/agents are moved to %USERPROFILE%\.claude\novaprom-backups\<timestamp>;
-# CLAUDE.md and settings.json get a *.bak-<timestamp> copy next to them.
+# The work is done by scripts/install_novaprom.py (one installer for Windows, macOS, Linux and cloud):
+# skills, subagents, the safety hook and the routing rules (global/NOVAPROM.md) are copied to
+# %USERPROFILE%\.claude and become available in EVERY project (Claude Code CLI and the Code tab of the
+# Claude app); docs/settings.proposed.json is merged into %USERPROFILE%\.claude\settings.json.
+# Replaced skills/agents are kept in %USERPROFILE%\.claude\novaprom-backups\<timestamp>;
+# CLAUDE.md and settings.json get a *.bak-<timestamp> copy. Safe to run again (updates only what changed).
 #
-# Security settings from docs/settings.proposed.json (hook, ask/deny rules, telemetry off,
-# plugins) are merged into %USERPROFILE%\.claude\settings.json by scripts/merge_settings.py.
-# The retired skill task-observer is moved aside.
-#
-# Run from the repository root:
-#   powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
+# Easiest: double-click scripts\install-windows.cmd (it also runs "git pull" first).
+# Or from the repository root:
+#   powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1          install / update
+#   powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 -Check   only check
 
-$ErrorActionPreference = 'Stop'
+param([switch]$Check)
 
+$ErrorActionPreference = 'Continue'
 $repoRoot  = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$claudeDir = Join-Path $env:USERPROFILE '.claude'
-$stamp     = Get-Date -Format 'yyyyMMdd-HHmmss'
-$utf8NoBom = New-Object System.Text.UTF8Encoding $false
-# Backups go OUTSIDE skills\ and agents\: a copied skill folder left in skills\ would be loaded
-# by Claude Code as a duplicate skill.
-$backupDir = Join-Path $claudeDir "novaprom-backups\$stamp"
+$installer = Join-Path $repoRoot 'scripts\install_novaprom.py'
+$req       = Join-Path $repoRoot 'scripts\requirements-novaprom.txt'
 
-function Backup-Item($path, $category) {
-    $dst = Join-Path $backupDir $category
-    New-Item -ItemType Directory -Force -Path $dst | Out-Null
-    Move-Item -Force $path (Join-Path $dst (Split-Path -Leaf $path))
-}
-
-function Copy-Tree($src, $dst) {
-    New-Item -ItemType Directory -Force -Path $dst | Out-Null
-    Get-ChildItem -Path $src -Directory | ForEach-Object {
-        $target = Join-Path $dst $_.Name
-        if (Test-Path $target) { Backup-Item $target 'skills' }
-        Copy-Item -Recurse -Force $_.FullName $target
-    }
-}
-
-# 0. Python is required by the calculation scripts and by the safety hook
+# Python is required by the installer, the safety hook and the calculation scripts.
 # "python" from WindowsApps is the Microsoft Store stub, not a real interpreter.
 $python = Get-Command python -ErrorAction SilentlyContinue |
     Where-Object { $_.Source -notlike '*\WindowsApps\*' } | Select-Object -First 1
-if ($python) {
-    $pyVersion = cmd /c "python --version 2>&1"
-    Write-Host "[OK] Python: $pyVersion ($($python.Source))"
-} else {
-    $python = $null
-    Write-Warning 'Python not found (or only the Microsoft Store stub). Install Python 3.11+ from python.org and tick "Add python.exe to PATH". The safety hook calls "python": without it the hook does not run and the calculation scripts do not work. Then run this script again.'
+if (-not $python) {
+    Write-Warning 'Python not found (or only the Microsoft Store stub). Install Python 3.11+ from python.org and tick "Add python.exe to PATH" (the safety hook calls "python"). Then run this script again.'
+    exit 1
+}
+$py = $python.Source
+Write-Host "[OK] Python: $(& $py --version) ($py)"
+
+if ($Check) {
+    & $py $installer --check
+    exit $LASTEXITCODE
 }
 
-# 1. Skills -> %USERPROFILE%\.claude\skills (a replaced skill folder is moved to $backupDir)
-Copy-Tree (Join-Path $repoRoot '.claude\skills') (Join-Path $claudeDir 'skills')
-Write-Host "[OK] Skills installed to $claudeDir\skills"
+& $py $installer
+$rc = $LASTEXITCODE
 
-# 2. Subagents -> %USERPROFILE%\.claude\agents
-$agentsDst = Join-Path $claudeDir 'agents'
-New-Item -ItemType Directory -Force -Path $agentsDst | Out-Null
-Get-ChildItem (Join-Path $repoRoot '.claude\agents\*.md') | ForEach-Object {
-    $target = Join-Path $agentsDst $_.Name
-    if (Test-Path $target) { Backup-Item $target 'agents' }
-    Copy-Item -Force $_.FullName $target
-}
-Write-Host "[OK] Subagents installed to $agentsDst"
-
-# 3. Safety hook script -> %USERPROFILE%\.claude\hooks (activated by the settings merged in step 6)
-$hooksDst = Join-Path $claudeDir 'hooks'
-New-Item -ItemType Directory -Force -Path $hooksDst | Out-Null
-Copy-Item -Force (Join-Path $repoRoot '.claude\hooks\novaprom_guard.py') $hooksDst
-Write-Host "[OK] Hook script copied to $hooksDst"
-
-# 4. Routing rules: copy global/NOVAPROM.md and import it from the user CLAUDE.md
-$novaDir = Join-Path $claudeDir 'novaprom'
-New-Item -ItemType Directory -Force -Path $novaDir | Out-Null
-Copy-Item -Force (Join-Path $repoRoot 'global\NOVAPROM.md') $novaDir
-$userClaudeMd = Join-Path $claudeDir 'CLAUDE.md'
-$importLine = '@~/.claude/novaprom/NOVAPROM.md'
-if (Test-Path $userClaudeMd) {
-    $content = [System.IO.File]::ReadAllText($userClaudeMd)   # detects UTF-8/UTF-16 by BOM
-    if ($content -notmatch [regex]::Escape($importLine)) {
-        Copy-Item -Force $userClaudeMd "$userClaudeMd.bak-$stamp"
-        $head = ([System.IO.File]::ReadAllBytes($userClaudeMd) | Select-Object -First 2) -join ','
-        if (($head -eq '255,254') -or ($head -eq '254,255')) {
-            # UTF-16 file: rewrite as UTF-8 so the appended line does not mix encodings
-            [System.IO.File]::WriteAllText($userClaudeMd, $content, $utf8NoBom)
-        }
-        [System.IO.File]::AppendAllText($userClaudeMd, "`r`n# NOVAPROM`r`n$importLine`r`n", $utf8NoBom)
+# Python packages for the calculation scripts: ask first, install for the current user only.
+& $py -c "import importlib.util as u, sys; sys.exit(0 if all(u.find_spec(m) for m in ('CoolProp','openpyxl','ezdxf','matplotlib','PIL','yaml')) else 1)"
+if ($LASTEXITCODE -ne 0) {
+    $answer = Read-Host 'Install the Python packages for the calculation scripts now (pip install --user -r scripts\requirements-novaprom.txt)? [y/N]'
+    if ($answer -match '^[yY]') {
+        & $py -m pip install --user -r $req
+        & $py $installer --check
+    } else {
+        Write-Host "Later:  python -m pip install --user -r `"$req`""
     }
-} else {
-    [System.IO.File]::WriteAllText($userClaudeMd, "# NOVAPROM`r`n$importLine`r`n", $utf8NoBom)
-}
-Write-Host "[OK] Routing rules imported in $userClaudeMd"
-
-# 5. Remove skills retired from the environment (task-observer).
-#    They are moved to $backupDir, not deleted.
-foreach ($old in @('task-observer')) {
-    $path = Join-Path $claudeDir "skills\$old"
-    if (Test-Path $path) {
-        Backup-Item $path 'skills-removed'
-        Write-Host "[OK] Retired skill $old moved to $backupDir\skills-removed"
-    }
-}
-
-# 6. Settings: security hook, ask/deny rules, telemetry off, plugins
-#    (claude-mem, frontend-design, claude-code-setup and novaprom-marketing on;
-#    agent-skills, superpowers and impeccable off globally - enable them per code project).
-#    The merge keeps everything else in settings.json and makes a backup first.
-$settingsPath = Join-Path $claudeDir 'settings.json'
-if ($python) {
-    & python (Join-Path $repoRoot 'scripts\merge_settings.py') `
-        --proposed (Join-Path $repoRoot 'docs\settings.proposed.json') `
-        --target $settingsPath
-    if ($LASTEXITCODE -ne 0) { Write-Warning "Settings were not changed: fix $settingsPath and run the script again." }
-} else {
-    Write-Warning 'Settings not merged (Python missing). Install Python and run the script again.'
 }
 
 Write-Host ''
-Write-Host 'Done! Next steps (see docs\ARCHITECTURE.md, section 7):'
-Write-Host '  1. Restart Claude Code; confirm trust for the plugin marketplaces (frontend-design and'
-Write-Host '     novaprom-marketing install automatically; or: /plugin install frontend-design@claude-plugins-official).'
-Write-Host '  2. claude-mem (pinned to v13.28.0, telemetry off, secret redaction on) keeps a local memory of'
-Write-Host '     every session in %USERPROFILE%\.claude-mem. To keep customer-document folders out of it, set'
-Write-Host '     CLAUDE_MEM_EXCLUDED_PROJECTS (comma-separated folder globs) - see docs\ARCHITECTURE.md, section 7.'
-Write-Host '  3. agent-skills (or superpowers - pick one, they overlap) / impeccable: enable only in a code project'
+Write-Host 'Next steps (details: docs\ARCHITECTURE.md, section 7):'
+Write-Host '  1. Restart Claude Code (CLI or the Code tab of the Claude app). Plugins from settings install on start;'
+Write-Host '     confirm trust for the plugin marketplaces if asked. Check in Claude Code: /skills, /agents, /hooks, /plugin.'
+Write-Host '  2. Document skills (docx, xlsx, pptx, pdf, skill-creator) and your own claude.ai skills (lead-triage,'
+Write-Host '     humanizer) come from your Claude account: sign in with /login using the Claude account (not an API key);'
+Write-Host '     they are listed in /plugin as ...@synced. Enable them in claude.ai Settings > Capabilities.'
+Write-Host '  3. claude-mem keeps a local memory of every session in %USERPROFILE%\.claude-mem. Keep customer-document'
+Write-Host '     folders out of it with CLAUDE_MEM_EXCLUDED_PROJECTS - see docs\ARCHITECTURE.md, section 7.'
+Write-Host '  4. agent-skills (or superpowers - pick one, they overlap) / impeccable: enable only in a code project'
 Write-Host '     (website, scripts) - add to that project''s .claude\settings.local.json:'
 Write-Host '     { "enabledPlugins": { "agent-skills@novaprom": true } }'
-Write-Host '  4. List protected folders (one path per line) in %USERPROFILE%\.claude\novaprom-protected-paths.txt'
-Write-Host '  5. Python packages for calculations:  python -m pip install CoolProp openpyxl ezdxf==1.4.4 matplotlib'
-Write-Host "Backups of replaced files: $backupDir"
+Write-Host '  5. List protected folders (one path per line) in %USERPROFILE%\.claude\novaprom-protected-paths.txt'
+Write-Host '  6. To update later: double-click scripts\install-windows.cmd (git pull + this script).'
+exit $rc

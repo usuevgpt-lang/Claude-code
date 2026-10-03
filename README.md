@@ -24,10 +24,15 @@
 ## Установка на рабочем компьютере (Windows)
 ```
 git clone https://github.com/usuevgpt-lang/Claude-code.git D:\Claude-code
-powershell -ExecutionPolicy Bypass -File D:\Claude-code\scripts\setup-windows.ps1
+D:\Claude-code\scripts\install-windows.cmd
 ```
-Скрипт ставит навыки, субагентов, хук и правила и вливает настройки безопасности в `%USERPROFILE%\.claude\settings.json`
-(с резервной копией). Дальше — шаги 3–9 раздела «Установка» в [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Нужны Python 3.11+ (с «Add python.exe to PATH») и желательно Node.js LTS. `install-windows.cmd` (можно двойным
+щелчком) обновляет клон, ставит навыки, субагентов, хук и правила в `%USERPROFILE%\.claude` — после этого они
+действуют **во всех проектах** — и вливает настройки в `%USERPROFILE%\.claude\settings.json` (с резервными копиями);
+в конце печатает проверку. Повторный запуск обновляет установку; `install-windows.cmd -Check` — только проверка.
+Плагины ставятся сами при запуске Claude Code; навыки claude.ai (docx, xlsx, pptx, pdf, lead-triage…) приходят из
+аккаунта Claude. macOS/Linux и облачные среды: `python3 scripts/install_novaprom.py`. Подробно — раздел 7
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Проверка
 ```
