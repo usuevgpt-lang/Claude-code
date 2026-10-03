@@ -4,7 +4,10 @@
     "DO_NOT_TRACK": "1",
     "IMPECCABLE_NO_TELEMETRY": "1",
     "IMPECCABLE_NO_UPDATE_CHECK": "1",
-    "SUPERPOWERS_DISABLE_TELEMETRY": "1"
+    "SUPERPOWERS_DISABLE_TELEMETRY": "1",
+    "CLAUDE_MEM_TELEMETRY": "0",
+    "CLAUDE_MEM_TELEMETRY_ERRORS": "0",
+    "CLAUDE_MEM_REDACT_ENABLED": "true"
   },
   "skillListingBudgetFraction": 0.02,
   "permissions": {
@@ -80,6 +83,13 @@
     ]
   },
   "extraKnownMarketplaces": {
+    "thedotmack": {
+      "source": {
+        "source": "github",
+        "repo": "thedotmack/claude-mem",
+        "ref": "v13.28.0"
+      }
+    },
     "superpowers-marketplace": {
       "source": {
         "source": "github",
@@ -100,6 +110,7 @@
     }
   },
   "enabledPlugins": {
+    "claude-mem@thedotmack": true,
     "superpowers@superpowers-marketplace": false,
     "impeccable@impeccable": false,
     "frontend-design@claude-plugins-official": true,

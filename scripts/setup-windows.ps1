@@ -6,7 +6,7 @@
 #
 # Security settings from docs/settings.proposed.json (hook, ask/deny rules, telemetry off,
 # plugins) are merged into %USERPROFILE%\.claude\settings.json by scripts/merge_settings.py.
-# Retired skills (find-skills, task-observer) are moved aside; claude-mem is disabled.
+# Retired skills (find-skills, task-observer) are moved aside.
 #
 # Run from the repository root:
 #   powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
@@ -101,16 +101,14 @@ foreach ($old in 'find-skills', 'task-observer') {
 }
 
 # 6. Settings: security hook, ask/deny rules, telemetry off, plugins
-#    (frontend-design and novaprom-marketing on; claude-mem off;
+#    (claude-mem, frontend-design and novaprom-marketing on;
 #    superpowers and impeccable off globally - enable them per code project).
 #    The merge keeps everything else in settings.json and makes a backup first.
 $settingsPath = Join-Path $claudeDir 'settings.json'
 if ($python) {
     & python (Join-Path $repoRoot 'scripts\merge_settings.py') `
         --proposed (Join-Path $repoRoot 'docs\settings.proposed.json') `
-        --target $settingsPath `
-        --disable-plugin 'claude-mem@thedotmack' `
-        --drop-marketplace 'thedotmack'
+        --target $settingsPath
     if ($LASTEXITCODE -ne 0) { Write-Warning "Settings were not changed: fix $settingsPath and run the script again." }
 } else {
     Write-Warning 'Settings not merged (Python missing). Install Python and run the script again.'
@@ -120,10 +118,9 @@ Write-Host ''
 Write-Host 'Done! Next steps (see docs\ARCHITECTURE.md, section 7):'
 Write-Host '  1. Restart Claude Code; confirm trust for the plugin marketplaces (frontend-design and'
 Write-Host '     novaprom-marketing install automatically; or: /plugin install frontend-design@claude-plugins-official).'
-Write-Host '  2. Remove claude-mem completely:'
-Write-Host '       /plugin uninstall claude-mem@thedotmack'
-Write-Host '       /plugin marketplace remove thedotmack'
-Write-Host '     then close Claude Code and delete %USERPROFILE%\.claude-mem (it may contain copies of customer documents).'
+Write-Host '  2. claude-mem (pinned to v13.28.0, telemetry off, secret redaction on) keeps a local memory of'
+Write-Host '     every session in %USERPROFILE%\.claude-mem. To keep customer-document folders out of it, set'
+Write-Host '     CLAUDE_MEM_EXCLUDED_PROJECTS (comma-separated folder globs) - see docs\ARCHITECTURE.md, section 7.'
 Write-Host '  3. superpowers / impeccable: enable only in a code project (website, scripts) - add to that project''s'
 Write-Host '     .claude\settings.local.json:  { "enabledPlugins": { "superpowers@superpowers-marketplace": true } }'
 Write-Host '  4. List protected folders (one path per line) in %USERPROFILE%\.claude\novaprom-protected-paths.txt'

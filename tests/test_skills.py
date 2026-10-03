@@ -351,6 +351,15 @@ class MergeSettings(unittest.TestCase):
         self.assertNotIn("thedotmack", out["extraKnownMarketplaces"])
         self.assertTrue(out["enabledPlugins"]["frontend-design@claude-plugins-official"])
 
+    def test_pins_existing_marketplace(self):
+        cur = {"extraKnownMarketplaces": {"thedotmack": {"source": {"source": "github", "repo": "thedotmack/claude-mem"}}},
+               "enabledPlugins": {"claude-mem@thedotmack": True}}
+        out, log = merge.merge(cur, self.PROP, [], [])
+        self.assertEqual(out["extraKnownMarketplaces"]["thedotmack"]["source"].get("ref"), "v13.28.0")
+        self.assertTrue(out["enabledPlugins"]["claude-mem@thedotmack"])
+        self.assertEqual(out["env"]["CLAUDE_MEM_TELEMETRY"], "0")
+        self.assertEqual(out["env"]["CLAUDE_MEM_REDACT_ENABLED"], "true")
+
     def test_upgrades_old_novaprom_hook_keeps_foreign(self):
         cur = {"hooks": {"PreToolUse": [
             {"matcher": "Bash", "hooks": [{"type": "command", "command": "python novaprom_guard.py"}]},

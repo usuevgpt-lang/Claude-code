@@ -39,7 +39,9 @@ python -m unittest discover -s tests -p "test_*.py"
 - **frontend-design** (официальный, Anthropic) и **novaprom-marketing** (этот репозиторий) — включены.
 - **superpowers** (`obra/superpowers-marketplace`) и **impeccable** (`pbakaus/impeccable`) — выключены глобально,
   включаются только в проектах кода (сайт, скрипты) через `.claude/settings.local.json` проекта.
-- **claude-mem**, **find-skills**, **task-observer** — удалены 2026-10-03 (причины — ARCHITECTURE.md, раздел 2).
+- **claude-mem** (`thedotmack/claude-mem`, закреплён на v13.28.0) — включён, телеметрия выключена, скрытие секретов
+  включено; папки с документами заказчиков рекомендуется исключить (ARCHITECTURE.md, раздел 7).
+- **find-skills**, **task-observer** — удалены 2026-10-03 (причины — ARCHITECTURE.md, раздел 2).
 
 ## Источники вендоренного кода
 - `web-assets` — alonw0/web-asset-generator (MIT), с исправлениями; `svg-icons` — tryopendata/skills svg-design (MIT);

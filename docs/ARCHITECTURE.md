@@ -50,7 +50,7 @@ MAIN → инженерные субагенты (параллельно) → н
 
 | Компонент | Где | Источник / версия | Состояние | Безопасность и актуальность | Дубли | Рекомендация |
 |---|---|---|---|---|---|---|
-| claude-mem | плагин (settings.json) | thedotmack/claude-mem v13.28, Apache-2.0 | **удалён** (решение 2026-10-03) | Хук на **каждый** вызов инструмента сохраняет полный вход/выход в `~/.claude-mem/claude-mem.db` без срока хранения (риск для документов заказчиков, паролей); фоновые вызовы модели на вашей подписке; локальный сервер 127.0.0.1:37777; телеметрия PostHog по умолчанию; `bun install` 26 пакетов при запуске | встроенная авто-память Claude Code | Удалён из настроек и установочного скрипта; на ПК — `/plugin uninstall` и очистка `%USERPROFILE%\.claude-mem\` (раздел 7) |
+| claude-mem | плагин (settings.json) | thedotmack/claude-mem v13.28.0, Apache-2.0 | **включён** по решению владельца (2026-10-03), закреплён на v13.28.0 | Хук на **каждый** вызов инструмента сохраняет полный вход/выход в `~/.claude-mem/claude-mem.db` без срока хранения (риск для документов заказчиков, паролей); фоновые вызовы модели на вашей подписке; локальный сервер 127.0.0.1:37777; телеметрия PostHog по умолчанию; `bun install` 26 пакетов при запуске | встроенная авто-память Claude Code | Включён с мерами защиты: телеметрия и отправка ошибок выключены, автоматическое скрытие секретов включено, версия закреплена; папки с документами заказчиков — исключить через `CLAUDE_MEM_EXCLUDED_PROJECTS` (раздел 7) |
 | superpowers | плагин | obra/superpowers v6.4.2, MIT | выключен глобально, включается в проектах кода | Код чистый; SessionStart-хук навязывает «правило 1 %», brainstorming и TDD на любую задачу — шум для расчётов и документов | частично plan mode, /code-review | Сделано: `false` в настройках; включать в `.claude/settings.local.json` проекта кода |
 | impeccable | плагин | pbakaus/impeccable v4.5.0, Apache-2.0 | выключен глобально, включается в проекте сайта | На каждый Edit/Write запускает скачиваемый бинарник; телеметрия и проверка обновлений на impeccable.style | **дублирует frontend-design** | Сделано: основной — официальный frontend-design; impeccable — только в проекте сайта |
 | find-skills | навык (вендорен) | vercel-labs/skills | **удалён** | Запускает `npx skills` без закреплённой версии, телеметрия с текстом запроса, рекомендует `add -g -y` (установка без проверки) | /plugin Discover | Удалён, заменён `novaprom-tool-vetting` |
@@ -231,12 +231,28 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
    - подключает правила `global/NOVAPROM.md` через `%USERPROFILE%\.claude\CLAUDE.md`;
    - убирает выведенные из эксплуатации find-skills и task-observer (в ту же папку резервных копий);
    - объединяет `docs/settings.proposed.json` с `%USERPROFILE%\.claude\settings.json`: хук, правила `ask`/`deny`,
-     отключение телеметрии, frontend-design и novaprom-marketing — включены, claude-mem, superpowers, impeccable —
+     отключение телеметрии, claude-mem, frontend-design и novaprom-marketing — включены, superpowers, impeccable —
      выключены (резервная копия `settings.json.bak-<время>`).
 3. Перезапустить Claude Code, подтвердить доверие маркетплейсам (плагины установятся сами; вручную:
    `/plugin install frontend-design@claude-plugins-official`, `/plugin install novaprom-marketing@novaprom`).
-4. Полностью удалить claude-mem: `/plugin uninstall claude-mem@thedotmack`, `/plugin marketplace remove thedotmack`,
-   закрыть Claude Code и удалить папку `%USERPROFILE%\.claude-mem` — в ней могут быть копии документов заказчиков.
+4. claude-mem — память между сессиями. Ставится вместе с остальными плагинами (маркетплейс `thedotmack`,
+   закреплён на теге `v13.28.0`). Учтите:
+   - он сохраняет полный ввод и вывод **каждого** вызова инструментов (в том числе прочитанные документы) в
+     `%USERPROFILE%\.claude-mem\claude-mem.db` без срока хранения; в фоне делает дополнительные вызовы модели
+     (Haiku) на вашей подписке и запускает локальный сервис 127.0.0.1:37777;
+   - уже включено: `CLAUDE_MEM_TELEMETRY=0`, `CLAUDE_MEM_TELEMETRY_ERRORS=0`, `DO_NOT_TRACK=1`,
+     `CLAUDE_MEM_REDACT_ENABLED=true` (скрытие типовых секретов);
+   - **рекомендуется** исключить папки с документами заказчиков (ОТТ, КД, сметы) — добавить в `env` пользовательского
+     `settings.json`, например:
+     ```json
+     "CLAUDE_MEM_EXCLUDED_PROJECTS": "D:/Заказчики,D:/Заказчики/**,D:/Транснефть,D:/Транснефть/**"
+     ```
+     (папка проекта сравнивается с шаблонами с учётом регистра; `**` — любые вложенные папки, сама папка
+     указывается отдельно; обратные слэши допустимы);
+     и при необходимости не записывать чтение файлов:
+     `"CLAUDE_MEM_SKIP_TOOLS": "ListMcpResourcesTool,SlashCommand,Skill,TodoWrite,AskUserQuestion,Read,WebFetch"`;
+   - обновлять версию — только после повторной проверки (`novaprom-tool-vetting`), меняя `ref` маркетплейса;
+   - не включать соседний плагин `claude-mem-cowork` из того же маркетплейса (передаёт данные в облако cmem.ai).
 5. superpowers / impeccable — только в проектах кода (сайт, скрипты). В папке такого проекта создать
    `.claude\settings.local.json`:
    ```json
@@ -276,7 +292,8 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
 ## 9. Решения
 
 Принято 2026-10-03:
-- claude-mem, find-skills, task-observer — удалены;
+- find-skills, task-observer — удалены; claude-mem сначала удалён, затем по решению владельца включён снова
+  (закреплён на v13.28.0, с мерами защиты — раздел 7);
 - superpowers и impeccable — выключены глобально, включаются в проектах кода;
 - настройки безопасности применены (репозиторий; на ПК — установочным скриптом).
 

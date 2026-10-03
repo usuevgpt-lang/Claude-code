@@ -6,7 +6,8 @@
   - skillListingBudgetFraction — только если не задан;
   - permissions.ask / permissions.deny — объединение без дублей (allow не трогается);
   - hooks.PreToolUse — хуки НОВАПРОМ добавляются, если их ещё нет (распознаются по novaprom_guard);
-  - extraKnownMarketplaces — добавляются; маркетплейсы из --drop-marketplace удаляются;
+  - extraKnownMarketplaces — добавляются или обновляются (источник, закреплённая версия);
+    маркетплейсы из --drop-marketplace удаляются;
   - enabledPlugins — значения из предложения; плагины из --disable-plugin выключаются (false).
 Всё остальное в файле сохраняется. Перед записью создаётся копия <файл>.bak-<время>.
 Файл пишется в UTF-8 без BOM.
@@ -77,13 +78,13 @@ def merge(cur: dict, prop: dict, disable: list[str], drop: list[str]) -> tuple[d
         out["hooks"] = hooks
 
     mk = dict(out.get("extraKnownMarketplaces") or {})
-    for name in drop:
+    for name, val in (prop.get("extraKnownMarketplaces") or {}).items():
+        if mk.get(name) != val:   # наши маркетплейсы: добавить или обновить источник (например, закреплённую версию)
+            log.append(f"extraKnownMarketplaces: {'обновлён' if name in mk else 'добавлен'} {name}")
+            mk[name] = val
+    for name in drop:   # явные ключи командной строки важнее предложения
         if mk.pop(name, None) is not None:
             log.append(f"extraKnownMarketplaces: удалён {name}")
-    for name, val in (prop.get("extraKnownMarketplaces") or {}).items():
-        if name not in mk:
-            mk[name] = val
-            log.append(f"extraKnownMarketplaces: добавлен {name}")
     if mk:
         out["extraKnownMarketplaces"] = mk
 
