@@ -8,8 +8,11 @@
 - `.claude/hooks/novaprom_guard.py` — хук безопасности (PreToolUse).
 - `plugins/novaprom-marketing/` + `.claude-plugin/marketplace.json` — локальный маркетплейс `novaprom` с плагином маркетинга.
 - `global/NOVAPROM.md` — правила MAIN AGENT, устанавливаются на уровень пользователя.
-- `docs/ARCHITECTURE.md` — описание архитектуры и инструкция; `docs/settings.proposed.json` — предлагаемые настройки.
-- `scripts/setup-windows.ps1` — установка на рабочий ПК; `scripts/validate_config.py` — проверка конфигурации.
+- `.claude/settings.json` — хук, правила разрешений, плагины этого репозитория; `docs/settings.proposed.json` — эталон
+  тех же настроек для уровня пользователя (вливает `scripts/merge_settings.py`, держать синхронными).
+- `docs/ARCHITECTURE.md` — описание архитектуры и инструкция.
+- `scripts/setup-windows.ps1` — установка на рабочий ПК; `scripts/merge_settings.py` — слияние настроек;
+  `scripts/validate_config.py` — проверка конфигурации.
 - `tests/` — тесты расчётных скриптов и хука.
 
 ## Правила для этого репозитория

@@ -17,7 +17,8 @@
 - **Web/IT**: сайт novaprom.ru (MODX), QA сайта, explain-code, иконки (NOVAPROM ICON DESIGN SYSTEM), SVG,
   web-assets, аудит Bitrix24 (только чтение), проверка сторонних инструментов.
 - **18 субагентов** (`.claude/agents/`) + 2 маркетинговых в плагине `novaprom-marketing` (`plugins/`).
-- **Хук безопасности** `.claude/hooks/novaprom_guard.py` и предлагаемые настройки `docs/settings.proposed.json`.
+- **Хук безопасности** `.claude/hooks/novaprom_guard.py`, правила разрешений и отключение телеметрии —
+  в `.claude/settings.json`; эталон для ПК — `docs/settings.proposed.json` (его вливает установочный скрипт).
 - **Правила маршрутизации** MAIN AGENT — `global/NOVAPROM.md`.
 
 ## Установка на рабочем компьютере (Windows)
@@ -25,7 +26,8 @@
 git clone https://github.com/usuevgpt-lang/Claude-code.git D:\Claude-code
 powershell -ExecutionPolicy Bypass -File D:\Claude-code\scripts\setup-windows.ps1
 ```
-Затем — шаги 3–7 раздела «Установка» в [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+Скрипт ставит навыки, субагентов, хук и правила и вливает настройки безопасности в `%USERPROFILE%\.claude\settings.json`
+(с резервной копией). Дальше — шаги 3–9 раздела «Установка» в [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Проверка
 ```
@@ -33,11 +35,11 @@ python scripts/validate_config.py
 python tests/test_skills.py
 ```
 
-## Ранее подключённые плагины и навыки (ожидают решения — см. ARCHITECTURE.md, раздел 9)
-- **claude-mem** (`thedotmack/claude-mem`), **superpowers** (`obra/superpowers-marketplace`),
-  **impeccable** (`pbakaus/impeccable`) — подключаются через `.claude/settings.json`.
-- **find-skills** (vercel-labs/skills) и **task-observer** (rebelytics/one-skill-to-rule-them-all, CC BY 4.0) —
-  в `.claude/skills/`.
+## Сторонние плагины
+- **frontend-design** (официальный, Anthropic) и **novaprom-marketing** (этот репозиторий) — включены.
+- **superpowers** (`obra/superpowers-marketplace`) и **impeccable** (`pbakaus/impeccable`) — выключены глобально,
+  включаются только в проектах кода (сайт, скрипты) через `.claude/settings.local.json` проекта.
+- **claude-mem**, **find-skills**, **task-observer** — удалены 2026-10-03 (причины — ARCHITECTURE.md, раздел 2).
 
 ## Источники вендоренного кода
 - `web-assets` — alonw0/web-asset-generator (MIT), с исправлениями; `svg-icons` — tryopendata/skills svg-design (MIT);

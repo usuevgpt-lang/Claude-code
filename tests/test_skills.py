@@ -39,6 +39,7 @@ clos = load("closure_calc", SK / "novaprom-valves-closures/scripts/closure_calc.
 cost = load("cost_calc", SK / "novaprom-cost-estimation/scripts/cost_calc.py")
 b24 = load("b24_readonly", SK / "novaprom-bitrix-audit/scripts/b24_readonly.py")
 guard = load("novaprom_guard", ROOT / ".claude/hooks/novaprom_guard.py")
+merge = load("merge_settings", ROOT / "scripts/merge_settings.py")
 
 
 def step_value(rep, symbol: str) -> float:
@@ -248,6 +249,43 @@ class Bitrix(unittest.TestCase):
         finally:
             b24.call = old_call
             os.chdir(old_cwd)
+
+
+class MergeSettings(unittest.TestCase):
+    PROP = json.loads((ROOT / "docs/settings.proposed.json").read_text(encoding="utf-8"))
+
+    def test_keeps_user_settings_and_adds_ours(self):
+        cur = {"theme": "dark", "permissions": {"allow": ["Bash(ls *)"], "deny": ["Read(**/.env)"]},
+               "hooks": {"Stop": [{"matcher": "", "hooks": [{"type": "command", "command": "x"}]}]},
+               "extraKnownMarketplaces": {"thedotmack": {}}, "enabledPlugins": {"claude-mem@thedotmack": True}}
+        out, log = merge.merge(cur, self.PROP, ["claude-mem@thedotmack"], ["thedotmack"])
+        self.assertEqual(out["theme"], "dark")
+        self.assertEqual(out["permissions"]["allow"], ["Bash(ls *)"])
+        self.assertEqual(out["permissions"]["deny"].count("Read(**/.env)"), 1)
+        self.assertIn("Stop", out["hooks"])
+        self.assertTrue(any("novaprom_guard" in json.dumps(g) for g in out["hooks"]["PreToolUse"]))
+        self.assertFalse(out["enabledPlugins"]["claude-mem@thedotmack"])
+        self.assertNotIn("thedotmack", out["extraKnownMarketplaces"])
+        self.assertTrue(out["enabledPlugins"]["frontend-design@claude-plugins-official"])
+
+    def test_idempotent(self):
+        once, _ = merge.merge({}, self.PROP, [], [])
+        twice, log = merge.merge(once, self.PROP, [], [])
+        self.assertEqual(once, twice)
+        self.assertEqual(log, [])
+
+    def test_bom_file(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            t = Path(tmp) / "settings.json"
+            t.write_bytes(b"\xef\xbb\xbf" + json.dumps({"theme": "light"}).encode())
+            with redirect_stdout(io.StringIO()):
+                rc = merge.main(["--proposed", str(ROOT / "docs/settings.proposed.json"), "--target", str(t)])
+            self.assertEqual(rc, 0)
+            data = t.read_bytes()
+            self.assertFalse(data.startswith(b"\xef\xbb\xbf"))
+            self.assertEqual(json.loads(data)["theme"], "light")
+            self.assertEqual(len(list(Path(tmp).glob("settings.json.bak-*"))), 1)
 
 
 if __name__ == "__main__":

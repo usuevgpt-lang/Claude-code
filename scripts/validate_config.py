@@ -6,6 +6,7 @@
 - субагенты: фронтматтер, уникальные имена, предзагружаемые навыки существуют;
 - одинаковые копии _calcreport.py во всех инженерных навыках;
 - JSON-файлы (plugin.json, marketplace.json, docs/settings.proposed.json) корректны;
+- .claude/settings.json и docs/settings.proposed.json совпадают по env/permissions/hooks/plugins;
 - в репозитории нет похожих на секреты строк (URL вебхуков Bitrix24 с кодом, приватные ключи).
 
 Запуск: python scripts/validate_config.py   (код возврата 1 при ошибках)
@@ -122,6 +123,25 @@ def check_json() -> None:
                 errors.append(f"{f}: некорректный JSON: {e}")
 
 
+def check_settings_sync() -> None:
+    """Настройки репозитория и эталон для уровня пользователя не должны расходиться."""
+    repo = ROOT / ".claude" / "settings.json"
+    prop = ROOT / "docs" / "settings.proposed.json"
+    if not (repo.exists() and prop.exists()):
+        return
+    try:
+        a = json.loads(repo.read_text(encoding="utf-8"))
+        b = json.loads(prop.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return  # уже отмечено в check_json
+    for key in ("env", "permissions", "hooks", "enabledPlugins", "extraKnownMarketplaces"):
+        if a.get(key) != b.get(key):
+            errors.append(f"{key}: .claude/settings.json и docs/settings.proposed.json расходятся")
+    hook_cmds = json.dumps(a.get("hooks", {}), ensure_ascii=False)
+    if "novaprom_guard" in hook_cmds and not (ROOT / ".claude" / "hooks" / "novaprom_guard.py").exists():
+        errors.append("хук ссылается на novaprom_guard.py, но файла нет")
+
+
 SECRET_PATTERNS = [
     (re.compile(r"https?://[^\s\"']+/rest/\d+/[a-z0-9]{10,}/", re.I), "URL вебхука Bitrix24 с кодом"),
     (re.compile(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----"), "приватный ключ"),
@@ -147,8 +167,9 @@ def main() -> int:
     check_agents(names)
     check_calcreport()
     check_json()
+    check_settings_sync()
     check_secrets()
-    sys.stdout.reconfigure(encoding="utf-8")
+    getattr(sys.stdout, "reconfigure", lambda **_: None)(encoding="utf-8")
     for w in dict.fromkeys(warnings):
         print(f"ПРЕДУПРЕЖДЕНИЕ: {w}")
     for e in errors:

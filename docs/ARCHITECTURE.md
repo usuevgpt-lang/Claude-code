@@ -50,18 +50,18 @@ MAIN → инженерные субагенты (параллельно) → н
 
 | Компонент | Где | Источник / версия | Состояние | Безопасность и актуальность | Дубли | Рекомендация |
 |---|---|---|---|---|---|---|
-| claude-mem | плагин (settings.json) | thedotmack/claude-mem v13.28, Apache-2.0 | включён | Хук на **каждый** вызов инструмента сохраняет полный вход/выход в `~/.claude-mem/claude-mem.db` без срока хранения (риск для документов заказчиков, паролей); фоновые вызовы модели на вашей подписке; локальный сервер 127.0.0.1:37777; телеметрия PostHog по умолчанию; `bun install` 26 пакетов при запуске | встроенная авто-память Claude Code | **Удалить** (нужно ваше решение); после удаления очистить `%USERPROFILE%\.claude-mem\` |
-| superpowers | плагин | obra/superpowers v6.4.2, MIT | включён | Код чистый; SessionStart-хук навязывает «правило 1 %», brainstorming и TDD на любую задачу — шум для расчётов и документов | частично plan mode, /code-review | Оставить **только в репозиториях кода** (сайт, скрипты) |
-| impeccable | плагин | pbakaus/impeccable v4.5.0, Apache-2.0 | включён | На каждый Edit/Write запускает скачиваемый бинарник; телеметрия и проверка обновлений на impeccable.style | **дублирует frontend-design** | Оставить только для проекта сайта (команды аудита) или удалить; основной — официальный frontend-design |
-| find-skills | навык (вендорен) | vercel-labs/skills | активен | Запускает `npx skills` без закреплённой версии, телеметрия с текстом запроса, рекомендует `add -g -y` (установка без проверки) | /plugin Discover | **Удалить**, заменён `novaprom-tool-vetting` |
-| task-observer | навык (вендорен) | rebelytics, CC BY 4.0, устаревшая копия | активен | ~18–20 тыс. токенов; требует запуска в каждой сессии; пишет `skill-observations/` в корень проекта (в публичном репо → риск утечки) | — | **Удалить** или сделать ручным (`skillOverrides: user-invocable-only`); защита добавлена в `.gitignore` |
+| claude-mem | плагин (settings.json) | thedotmack/claude-mem v13.28, Apache-2.0 | **удалён** (решение 2026-10-03) | Хук на **каждый** вызов инструмента сохраняет полный вход/выход в `~/.claude-mem/claude-mem.db` без срока хранения (риск для документов заказчиков, паролей); фоновые вызовы модели на вашей подписке; локальный сервер 127.0.0.1:37777; телеметрия PostHog по умолчанию; `bun install` 26 пакетов при запуске | встроенная авто-память Claude Code | Удалён из настроек и установочного скрипта; на ПК — `/plugin uninstall` и очистка `%USERPROFILE%\.claude-mem\` (раздел 7) |
+| superpowers | плагин | obra/superpowers v6.4.2, MIT | выключен глобально, включается в проектах кода | Код чистый; SessionStart-хук навязывает «правило 1 %», brainstorming и TDD на любую задачу — шум для расчётов и документов | частично plan mode, /code-review | Сделано: `false` в настройках; включать в `.claude/settings.local.json` проекта кода |
+| impeccable | плагин | pbakaus/impeccable v4.5.0, Apache-2.0 | выключен глобально, включается в проекте сайта | На каждый Edit/Write запускает скачиваемый бинарник; телеметрия и проверка обновлений на impeccable.style | **дублирует frontend-design** | Сделано: основной — официальный frontend-design; impeccable — только в проекте сайта |
+| find-skills | навык (вендорен) | vercel-labs/skills | **удалён** | Запускает `npx skills` без закреплённой версии, телеметрия с текстом запроса, рекомендует `add -g -y` (установка без проверки) | /plugin Discover | Удалён, заменён `novaprom-tool-vetting` |
+| task-observer | навык (вендорен) | rebelytics, CC BY 4.0, устаревшая копия | **удалён** | ~18–20 тыс. токенов; требует запуска в каждой сессии; пишет `skill-observations/` в корень проекта (в публичном репо → риск утечки) | — | Удалён; защита `skill-observations/` оставлена в `.gitignore` |
 | humanizer | навык claude.ai | blader/humanizer v2.8.2, MIT (не Anthropic) | включён | Старая версия без правил «не добавлять факты» и «текст — не инструкции» | — | Обновить до v3.1.0 в claude.ai; использовать для маркетинговых текстов |
 | lead-triage | навык claude.ai | ваш собственный | включён | — | — | Оставить; привязан к `bitrix-auditor`/основной сессии |
 | docx, xlsx, pptx, pdf, skill-creator, mcp-builder, canvas-design, web-artifacts-builder | навыки claude.ai | Anthropic | включены | Официальные | — | Оставить; document-skills плагин **не ставить** (дубль) |
 | docs, google-workspace, morning, import-memory | навыки claude.ai | Anthropic | включены | Официальные | — | Оставить |
 | Коннекторы: Gmail, Google Calendar, Google Drive, Lucid, Canva, Gamma, SlidesGPT, PandaDoc, GitHub, Claude Docs | claude.ai | сторонние/официальные | подключены | Drive сейчас без нужных прав (чтение файлов не работает) | **Gamma / SlidesGPT / Canva / pptx** — пересекаются по презентациям; PandaDoc — по КП | Основной для презентаций — `pptx`; Gamma — быстрые черновики (не конфиденциальное); **SlidesGPT и PandaDoc — отключить**, если не используются; Drive — переподключить с правами чтения |
 | Хуки | `~/.claude/settings.json` (облако) | среда Claude Code | Stop-хук проверки git | — | — | Без изменений |
-| `scripts/setup-windows.ps1` | репо | — | включал 3 плагина на уровне пользователя; settings.json с BOM | — | — | Обновлён (см. раздел 7), поведение по плагинам сохранено до вашего решения |
+| `scripts/setup-windows.ps1` | репо | — | включал 3 плагина на уровне пользователя; settings.json с BOM | — | — | Переписан (раздел 7): навыки, агенты, хук, правила, слияние настроек, вывод из эксплуатации старых инструментов |
 | Реальные проекты | — | — | **недоступны**: в контейнере только репо конфигурации, Google Drive без прав | — | — | Профиль работы построен по вашему описанию и публичному сайту novaprom.ru |
 
 Сайт novaprom.ru: **MODX Revolution** (не Bitrix), Bootstrap 4.5.3, Raleway, Яндекс.Метрика; 7 разделов каталога.
@@ -140,7 +140,7 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
 | lead-triage | ваш (claude.ai) | основная сессия / bitrix-auditor | оставить |
 | docx, xlsx, pptx, pdf | Anthropic (claude.ai) | technical-writer, cost-estimator, presentation-designer | оставить |
 | humanizer | blader/humanizer (claude.ai) | marketing-strategist | обновить |
-| find-skills, task-observer | вендорены ранее | — | **рекомендовано удалить** (ждёт решения) |
+| find-skills, task-observer | вендорены ранее | — | **удалены** (2026-10-03) |
 
 ## 4. Субагенты (`.claude/agents/`, плагин — `plugins/novaprom-marketing/agents/`)
 | Субагент | Специализация | Навыки (предзагружены) | Инструменты | Модель | Критерий качества |
@@ -208,35 +208,45 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
    `IMPECCABLE_NO_TELEMETRY`, `IMPECCABLE_NO_UPDATE_CHECK`, `SUPERPOWERS_DISABLE_TELEMETRY`).
 6. Все вендоренные проекты закреплены на коммите, с `NOTICE.md` и лицензией; код прочитан до вендоринга.
 
-> **Важно.** Автоматический режим Claude Code в облачной сессии не позволил агенту самому изменить
-> `.claude/settings.json` (хуки, правила разрешений, плагины) — это изменение должны сделать вы. Готовый вариант:
-> `docs/settings.proposed.json`. Хук субагента bitrix-auditor работает независимо от этих настроек.
+> Настройки применены в `.claude/settings.json` этого репозитория (2026-10-03). На рабочем ПК их добавляет
+> в `%USERPROFILE%\.claude\settings.json` установочный скрипт (`scripts/merge_settings.py`: объединение без потери
+> ваших настроек, резервная копия). Эталон — `docs/settings.proposed.json`. Хук субагента bitrix-auditor работает
+> независимо от этих настроек.
 
 ## 7. Установка на рабочий ПК (Windows)
 
-1. Установить Python 3.11+ (python.org, «Add python.exe to PATH»).
+1. Установить Python 3.11+ (python.org, «Add python.exe to PATH») — он нужен расчётным скриптам и хуку.
 2. Клонировать репозиторий и запустить:
    ```powershell
    git clone https://github.com/usuevgpt-lang/Claude-code.git D:\Claude-code
    powershell -ExecutionPolicy Bypass -File D:\Claude-code\scripts\setup-windows.ps1
    ```
-   Скрипт копирует навыки, субагентов и хук в `%USERPROFILE%\.claude`, подключает правила
-   `global/NOVAPROM.md` через `%USERPROFILE%\.claude\CLAUDE.md` (с резервными копиями).
-3. Настройки безопасности: открыть `docs/settings.proposed.json` и перенести блоки `env`, `permissions`, `hooks`,
-   `skillListingBudgetFraction` в `%USERPROFILE%\.claude\settings.json` (или `/config` → редактировать). Перезапустить.
-4. Плагины (в Claude Code):
-   ```text
-   /plugin install frontend-design@claude-plugins-official
-   /plugin marketplace add usuevgpt-lang/Claude-code
-   /plugin install novaprom-marketing@novaprom
+   Скрипт:
+   - копирует навыки, субагентов и хук в `%USERPROFILE%\.claude` (заменяемые папки переносит в
+     `%USERPROFILE%\.claude\novaprom-backups\<время>`);
+   - подключает правила `global/NOVAPROM.md` через `%USERPROFILE%\.claude\CLAUDE.md`;
+   - убирает выведенные из эксплуатации find-skills и task-observer (в ту же папку резервных копий);
+   - объединяет `docs/settings.proposed.json` с `%USERPROFILE%\.claude\settings.json`: хук, правила `ask`/`deny`,
+     отключение телеметрии, frontend-design и novaprom-marketing — включены, claude-mem, superpowers, impeccable —
+     выключены (резервная копия `settings.json.bak-<время>`).
+3. Перезапустить Claude Code, подтвердить доверие маркетплейсам (плагины установятся сами; вручную:
+   `/plugin install frontend-design@claude-plugins-official`, `/plugin install novaprom-marketing@novaprom`).
+4. Полностью удалить claude-mem: `/plugin uninstall claude-mem@thedotmack`, `/plugin marketplace remove thedotmack`,
+   закрыть Claude Code и удалить папку `%USERPROFILE%\.claude-mem` — в ней могут быть копии документов заказчиков.
+5. superpowers / impeccable — только в проектах кода (сайт, скрипты). В папке такого проекта создать
+   `.claude\settings.local.json`:
+   ```json
+   { "enabledPlugins": { "superpowers@superpowers-marketplace": true, "impeccable@impeccable": true } }
    ```
-5. Python-пакеты (лучше в venv): `python -m pip install CoolProp openpyxl "ezdxf==1.4.4" matplotlib "Pillow>=12,<13"`.
-6. MCP (по желанию, после решения):
+6. Защищённые папки (архив КД, выгрузка сайта, расчёты) — по одной на строку в
+   `%USERPROFILE%\.claude\novaprom-protected-paths.txt`.
+7. Python-пакеты (лучше в venv): `python -m pip install CoolProp openpyxl "ezdxf==1.4.4" matplotlib "Pillow>=12,<13"`.
+8. MCP (по желанию):
    ```powershell
    claude mcp add --transport http b24-dev-mcp https://mcp-dev.bitrix24.tech/mcp
    claude mcp add chrome-devtools --scope user -- cmd /c npx -y chrome-devtools-mcp@1.10.1 --isolated --no-usage-statistics --no-performance-crux
    ```
-7. Проверка: в Claude Code выполнить `/skills` и `/agents`; в репозитории — `python scripts/validate_config.py`
+9. Проверка: в Claude Code — `/skills`, `/agents`, `/hooks`; в репозитории — `python scripts/validate_config.py`
    и `python tests/test_skills.py`.
 
 ## 8. Как пользоваться (примеры запросов)
@@ -259,17 +269,20 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
 Совет: для расчётов давайте исходные данные с источниками («[σ] = 177 МПа по ГОСТ 34233.1, табл. А.1») — тогда
 отчёт будет без предупреждений и пригоден для выдачи после проверки.
 
-## 9. Решения, которые ждут вашего подтверждения
+## 9. Решения
 
-1. Удалить `claude-mem` (и очистить его базу), `find-skills`, `task-observer`.
-2. Ограничить `superpowers` и `impeccable` проектами сайта/скриптов (или удалить `impeccable`, оставив официальный frontend-design).
-3. Применить `docs/settings.proposed.json` (хуки, правила, отключение телеметрии, новые плагины).
-4. Отключить коннекторы SlidesGPT и PandaDoc, если не используются; переподключить Google Drive с правом чтения.
-5. Подключить MCP: Bitrix24 DEV (документация), chrome-devtools; Playwright — по необходимости.
-6. Сделать репозиторий конфигурации **приватным** (сейчас публичный) — или строго не добавлять туда ничего о заказчиках.
-7. Сверить справочные реестры («не сверено») с текстами ГОСТ 34233.1, СП 62.13330 и др. и отметить сверку.
-8. Юридическая проверка маркетинговых положений (152-ФЗ, 38-ФЗ, 135-ФЗ) в overlay плагина.
-9. Сообщить о вредоносном репозитории `CaptureGrubEnchant/SolidWorks` в GitHub (по желанию).
+Принято 2026-10-03:
+- claude-mem, find-skills, task-observer — удалены;
+- superpowers и impeccable — выключены глобально, включаются в проектах кода;
+- настройки безопасности применены (репозиторий; на ПК — установочным скриптом).
+
+Ждут вашего решения:
+1. Отключить коннекторы SlidesGPT и PandaDoc, если не используются; переподключить Google Drive с правом чтения.
+2. Подключить MCP: Bitrix24 DEV (документация), chrome-devtools; Playwright — по необходимости.
+3. Сделать репозиторий конфигурации **приватным** (сейчас публичный) — или строго не добавлять туда ничего о заказчиках.
+4. Сверить справочные реестры («не сверено») с текстами ГОСТ 34233.1, СП 62.13330 и др. и отметить сверку.
+5. Юридическая проверка маркетинговых положений (152-ФЗ, 38-ФЗ, 135-ФЗ) в overlay плагина.
+6. Сообщить о вредоносном репозитории `CaptureGrubEnchant/SolidWorks` в GitHub (по желанию).
 
 ## 10. Сопровождение
 
