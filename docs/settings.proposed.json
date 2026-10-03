@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "DO_NOT_TRACK": "1",
+    "CLAUDE_MEM_TELEMETRY": "0",
+    "IMPECCABLE_NO_TELEMETRY": "1",
+    "IMPECCABLE_NO_UPDATE_CHECK": "1",
+    "SUPERPOWERS_DISABLE_TELEMETRY": "1"
+  },
+  "skillListingBudgetFraction": 0.02,
+  "permissions": {
+    "ask": [
+      "Bash(rm -rf *)",
+      "Bash(rm -r *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(git clean *)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(sftp *)",
+      "Bash(rsync *)",
+      "Bash(mysql *)",
+      "Bash(psql *)",
+      "Bash(pip install *)",
+      "Bash(pip3 install *)",
+      "Bash(python -m pip install *)",
+      "Bash(npm install *)",
+      "Bash(npm i *)",
+      "Bash(npx *)",
+      "Bash(uvx *)",
+      "Bash(winget install *)",
+      "Bash(claude mcp add *)",
+      "Bash(claude plugin install *)",
+      "PowerShell(Remove-Item *)",
+      "PowerShell(Invoke-WebRequest *)",
+      "PowerShell(Invoke-RestMethod *)",
+      "PowerShell(ssh *)",
+      "PowerShell(pip install *)",
+      "PowerShell(npm install *)",
+      "PowerShell(npx *)",
+      "PowerShell(winget install *)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/core/config/config.inc.php)",
+      "Read(**/bitrix/.settings.php)",
+      "Read(**/php_interface/dbconn.php)",
+      "Read(**/*.pfx)",
+      "Read(**/id_rsa)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|Write|Edit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "-c",
+              "import os,sys,runpy; c=[os.path.join(os.environ.get('CLAUDE_PROJECT_DIR','.'),'.claude','hooks','novaprom_guard.py'), os.path.expanduser('~/.claude/hooks/novaprom_guard.py')]; f=next((x for x in c if os.path.isfile(x)),None); sys.argv=['novaprom_guard']+sys.argv[1:]; runpy.run_path(f,run_name='__main__') if f else None"
+            ]
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python",
+            "args": [
+              "-c",
+              "import os,sys,runpy; c=[os.path.join(os.environ.get('CLAUDE_PROJECT_DIR','.'),'.claude','hooks','novaprom_guard.py'), os.path.expanduser('~/.claude/hooks/novaprom_guard.py')]; f=next((x for x in c if os.path.isfile(x)),None); sys.argv=['novaprom_guard']+sys.argv[1:]; runpy.run_path(f,run_name='__main__') if f else None"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "extraKnownMarketplaces": {
+    "thedotmack": {
+      "source": {
+        "source": "github",
+        "repo": "thedotmack/claude-mem"
+      }
+    },
+    "superpowers-marketplace": {
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers-marketplace"
+      }
+    },
+    "impeccable": {
+      "source": {
+        "source": "github",
+        "repo": "pbakaus/impeccable"
+      }
+    },
+    "novaprom": {
+      "source": {
+        "source": "github",
+        "repo": "usuevgpt-lang/Claude-code"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "claude-mem@thedotmack": true,
+    "superpowers@superpowers-marketplace": true,
+    "impeccable@impeccable": true,
+    "frontend-design@claude-plugins-official": true,
+    "novaprom-marketing@novaprom": true
+  }
+}
