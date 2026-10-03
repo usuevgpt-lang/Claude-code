@@ -4,6 +4,9 @@ __pycache__/
 .venv/
 .pytest_cache/
 
+# собранные архивы навыков для claude.ai (scripts/build_claude_ai_skills.py)
+dist/
+
 # результаты работы навыков — не коммитить (могут содержать данные заказчиков)
 work/
 research/

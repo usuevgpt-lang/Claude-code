@@ -13,7 +13,7 @@
 - `docs/ARCHITECTURE.md` — описание архитектуры и инструкция.
 - `scripts/install_novaprom.py` — установка на уровень пользователя (Windows/macOS/Linux/облако), на Windows —
   `scripts/install-windows.cmd` → `scripts/setup-windows.ps1`; `scripts/merge_settings.py` — слияние настроек;
-  `scripts/validate_config.py` — проверка конфигурации.
+  `scripts/validate_config.py` — проверка конфигурации; `scripts/build_claude_ai_skills.py` — архивы навыков для claude.ai.
 - `tests/` — тесты расчётных скриптов и хука.
 
 ## Правила для этого репозитория
