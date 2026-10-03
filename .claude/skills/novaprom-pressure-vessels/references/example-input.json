@@ -1,0 +1,9 @@
+{"elements": [
+ {"type": "cyl_internal", "name": "Обечайка корпуса", "p": {"value": 6.3, "source": "ОЛ, п.2"}, "D": {"value":1000,"source":"эскиз"}, "s": 22, "c1": 2.0, "c2": 0.8, "sigma": {"value": 177, "source": "ГОСТ 34233.1-2017 табл. А.1 (09Г2С, 100 °C) — сверить"}, "phi": 1.0},
+ {"type": "ellipsoidal_head", "name": "Днище 1000", "p": 6.3, "D": 1000, "H": 250, "s": 22, "c": 3.8, "sigma": 177, "phi": 1.0},
+ {"type": "opening", "name": "Штуцер Ду200", "shell": "cyl", "p": 6.3, "D": 1000, "s": 22, "c": 2.8, "sigma": 177, "d": 199, "cs": 2.0, "s1": 12, "l1": 200, "sigma1": 160},
+ {"type": "flat_head", "name": "Заглушка", "p": 6.3, "Dp": 300, "K": 0.41, "s": 40, "c": 2, "sigma": 177, "phi": 1},
+ {"type": "cyl_external", "name": "Вакуум", "p": 0.1, "D": 1000, "s": 10, "c": 2, "sigma": 177, "E": 1.99e5, "l": 3000, "ny": 2.4},
+ {"type": "test_pressure", "p": 6.3, "k": 1.25, "sigma20": 196, "sigmat": 177, "Re20": 325, "nt_test": 1.1, "D": 1000, "s": 22, "c": 2.8, "phi": 1.0, "h_water": 1.5},
+ {"type": "mass", "rho": 7850, "parts": [{"kind": "cylinder", "D": 1000, "s": 22, "L": 3000}, {"kind": "ellipsoidal_head", "D": 1000, "s": 22, "h1": 40, "qty": 2}]}
+]}

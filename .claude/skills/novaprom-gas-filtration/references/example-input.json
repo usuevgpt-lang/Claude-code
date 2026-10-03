@@ -1,0 +1,7 @@
+{"cases": [
+ {"type": "souders_brown", "Q_w": 788.3, "rho_g": 43.13, "rho_l": 700, "K": {"value": 0.107, "source": "GPSA Sec.7, сетчатый каплеуловитель — уточнить у производителя"}, "k_derate": 0.85, "D": 600},
+ {"type": "elements_count", "Q_w": 788.3, "method": "face_velocity", "d_el": 152, "L_el": 914, "v_face": 0.05, "reserve": 1.1},
+ {"type": "element_dp", "dp_ref": 5, "q_ref": 100, "q": 80, "rho_ref": 1.2, "rho": 43.13, "dp_max_clean": 30},
+ {"type": "nozzle_check", "Q_w": 788.3, "rho": 43.13, "d_in": 199, "w_max": 20, "mom_max": 6000},
+ {"type": "cyclone_lapple", "mu": 1.15e-5, "W": 50, "Ne": 6, "Vi": 15, "rho_p": 2500, "rho_g": 43, "sizes_um": [1, 5, 10, 20]}
+]}

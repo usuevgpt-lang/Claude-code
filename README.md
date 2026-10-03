@@ -1,33 +1,59 @@
-# Claude-code
-Клод на айфоне 
+# Claude-code — рабочая среда НОВАПРОМ
+
+Конфигурация Claude Code для инженерной, конструкторской, нормативной, коммерческой, исследовательской,
+дизайнерской и IT-работы ООО НПФ «НОВАПРОМ».
+
+**Полное описание архитектуры, реестр навыков и субагентов, безопасность и инструкция — [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).**
+
+> Репозиторий публичный: здесь только навыки, скрипты и шаблоны. Документы заказчиков, цены, чертежи и
+> учётные данные сюда не добавлять.
+
+## Состав
+- **Инженерные навыки** `novaprom-*` со скриптами расчётов (Python): сосуды под давлением (ГОСТ 34233),
+  трубопроводы, газодинамика (Z тремя методами, Джоуль–Томсон, Kv), фильтры-сепараторы, теплообменники,
+  ПГБ/БПГ, камеры СОД, затворы, материалы, CAD (DXF, развёртки), независимая проверка расчётов.
+- **Документы и коммерция**: нормативная проверка, Транснефть (gap-анализ ОТТ), ТУ/ПМИ/паспорт/РЭ,
+  себестоимость (Excel с формулами), КП/ТКП, презентации, закупки, литература и патенты, deep research.
+- **Web/IT**: сайт novaprom.ru (MODX), QA сайта, explain-code, иконки (NOVAPROM ICON DESIGN SYSTEM), SVG,
+  web-assets, аудит Bitrix24 (только чтение), проверка сторонних инструментов.
+- **18 субагентов** (`.claude/agents/`) + 2 маркетинговых в плагине `novaprom-marketing` (`plugins/`).
+- **Хук безопасности** `.claude/hooks/novaprom_guard.py`, правила разрешений и отключение телеметрии —
+  в `.claude/settings.json`; эталон для ПК — `docs/settings.proposed.json` (его вливает установочный скрипт).
+- **Правила маршрутизации** MAIN AGENT — `global/NOVAPROM.md`.
 
 ## Установка на рабочем компьютере (Windows)
+```
+git clone https://github.com/usuevgpt-lang/Claude-code.git D:\Claude-code
+D:\Claude-code\scripts\install-windows.cmd
+```
+Нужны Python 3.11+ (с «Add python.exe to PATH») и желательно Node.js LTS. `install-windows.cmd` (можно двойным
+щелчком) обновляет клон, ставит навыки, субагентов, хук и правила в `%USERPROFILE%\.claude` — после этого они
+действуют **во всех проектах** — и вливает настройки в `%USERPROFILE%\.claude\settings.json` (с резервными копиями);
+в конце печатает проверку. Повторный запуск обновляет установку; `install-windows.cmd -Check` — только проверка.
+Плагины ставятся сами при запуске Claude Code; навыки claude.ai (docx, xlsx, pptx, pdf, lead-triage…) приходят из
+аккаунта Claude. macOS/Linux и облачные среды: `python3 scripts/install_novaprom.py`. Подробно — раздел 7
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-Чтобы скиллы и плагины работали на компьютере глобально — в любой папке, а не только в этом репозитории:
+## Проверка
+```
+python scripts/validate_config.py
+python -m unittest discover -s tests -p "test_*.py"
+```
 
-1. Склонируйте репозиторий, например на диск D:
-   ```
-   git clone https://github.com/usuevgpt-lang/Claude-code.git D:\Claude-code
-   ```
-   (если git не установлен — скачайте ZIP с GitHub: Code → Download ZIP, и распакуйте)
-2. Запустите установочный скрипт в PowerShell:
-   ```
-   powershell -ExecutionPolicy Bypass -File D:\Claude-code\scripts\setup-windows.ps1
-   ```
-   Скрипт скопирует скиллы в `%USERPROFILE%\.claude\skills` и пропишет плагины в `%USERPROFILE%\.claude\settings.json` (существующие настройки сохраняются, делается резервная копия).
-3. Перезапустите Claude Code. При первом запуске подтвердите доверие маркетплейсам — плагины установятся автоматически.
+## Сторонние плагины
+- **frontend-design** и **claude-code-setup** (официальные, Anthropic) и **novaprom-marketing** (этот репозиторий) — включены.
+- **agent-skills** (`addyosmani/agent-skills` 0.6.12, MIT; через маркетплейс `novaprom`, закреплён на коммите `a06bc63`) —
+  процесс разработки кода (spec → plan → build → test → review → ship); выключен глобально, включается в проектах кода.
+- **superpowers** (`obra/superpowers-marketplace`) и **impeccable** (`pbakaus/impeccable`) — выключены глобально,
+  включаются только в проектах кода (сайт, скрипты) через `.claude/settings.local.json` проекта.
+- **claude-mem** (`thedotmack/claude-mem`, закреплён на v13.28.0) — включён, телеметрия выключена, скрытие секретов
+  включено; папки с документами заказчиков рекомендуется исключить (ARCHITECTURE.md, раздел 7).
+- **find-skills** (vercel-labs/skills, MIT) — восстановлен с правками безопасности: CLI `skills@1.7.0`, без телеметрии,
+  установка только в проект и после проверки `novaprom-tool-vetting` (см. его `NOTICE.md`).
+- **task-observer** — удалён 2026-10-03 (причины — ARCHITECTURE.md, раздел 2).
 
-Вариант без скрипта: откройте Claude Code в любой папке и попросите: «склонируй usuevgpt-lang/Claude-code и запусти scripts/setup-windows.ps1» — Claude сделает всё сам.
-
-## Плагины
-
-Подключаются автоматически через `.claude/settings.json` — при первом запуске Claude Code в этом репозитории предложит установить их из указанных маркетплейсов.
-
-- **claude-mem** — постоянная память для Claude Code (сжатие контекста между сессиями). Маркетплейс: `thedotmack/claude-mem`.
-- **superpowers** — библиотека базовых скиллов от Jesse Vincent: TDD, отладка, паттерны совместной работы. Маркетплейс: `obra/superpowers-marketplace`.
-- **impeccable** — дизайн-скилл от Paul Bakaus для фронтенда: аудит, критика и полировка интерфейсов, 23 команды (`/impeccable polish`, `/impeccable audit` и др.). Маркетплейс: `pbakaus/impeccable`.
-
-## Скиллы
-
-- **find-skills** (`.claude/skills/find-skills/`) — поиск и установка скиллов из открытой экосистемы agent skills (skills.sh). Источник: [vercel-labs/skills](https://github.com/vercel-labs/skills).
-- **task-observer** (`.claude/skills/task-observer/`) — мета-скилл «One Skill to Rule Them All»: наблюдает за рабочими сессиями, фиксирует исправления и повторяющиеся паттерны и превращает их в улучшения скиллов. Источник: [rebelytics/one-skill-to-rule-them-all](https://github.com/rebelytics/one-skill-to-rule-them-all) (CC BY 4.0, автор Eoghan Henn).
+## Источники вендоренного кода
+- `web-assets` — alonw0/web-asset-generator (MIT), с исправлениями; `svg-icons` — tryopendata/skills svg-design (MIT);
+  `anydoc` — firecrawl/anydoc (MIT), CLI закреплён на 0.2.4, без облачного OCR;
+  `plugins/novaprom-marketing` — coreyhaines31/marketingskills (MIT) и wondelai/skills (MIT).
+  Подробности, коммиты и изменения — в `NOTICE.md` каждого навыка/плагина.

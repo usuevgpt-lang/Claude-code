@@ -1,0 +1,9 @@
+# Python packages for the NOVAPROM calculation scripts and the config validator.
+# Install:  python -m pip install -r scripts/requirements-novaprom.txt
+# Versions are the ones the scripts and tests were checked with.
+CoolProp==8.0.0
+openpyxl>=3.1.5,<4
+ezdxf==1.4.4
+matplotlib>=3.9,<4
+Pillow>=12,<13
+PyYAML>=6.0.1,<7

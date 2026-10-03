@@ -1,0 +1,25 @@
+{
+  "name": "novaprom",
+  "description": "Локальный маркетплейс НОВАПРОМ: плагины, которые включаются по проектам (маркетинг и SEO сайта, процесс разработки кода).",
+  "owner": {
+    "name": "НОВАПРОМ"
+  },
+  "plugins": [
+    {
+      "name": "novaprom-marketing",
+      "source": "./plugins/novaprom-marketing",
+      "description": "Маркетинг промышленного B2B, SEO (Яндекс), контент, CRO, аналитика, конкуренты, JTBD — 16 навыков (15 из coreyhaines31/marketingskills, MIT, с адаптацией + jtbd-industrial) и 2 субагента."
+    },
+    {
+      "name": "agent-skills",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/addyosmani/agent-skills.git",
+        "sha": "a06bc63b3f8b829c14b0bbf53d99fefc39d58092"
+      },
+      "description": "Процесс разработки кода (spec → plan → build → test → review → ship): 25 навыков, 4 субагента, 9 команд. addyosmani/agent-skills 0.6.12, MIT; закреплён на проверенном коммите, обновление — после novaprom-tool-vetting. Включать только в проектах кода.",
+      "homepage": "https://github.com/addyosmani/agent-skills",
+      "license": "MIT"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "novaprom-marketing",
+  "version": "1.0.0",
+  "description": "Маркетинг промышленного B2B для НОВАПРОМ: позиционирование, SEO (Яндекс в первую очередь), AI-SEO, schema.org, структура сайта, контент-стратегия, тексты и редактура, CRO форм и опросных листов, аналитика (Яндекс Метрика), конкуренты, исследования клиентов и JTBD, материалы для продаж. B2B industrial marketing for NOVAPROM: positioning, SEO, content, CRO, analytics, competitors, customer research and JTBD. Never computes technical values or prices — those belong to novaprom-* engineering skills.",
+  "author": {
+    "name": "НОВАПРОМ"
+  },
+  "license": "MIT"
+}

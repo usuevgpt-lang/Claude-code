@@ -1,0 +1,24 @@
+# служебные файлы Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# результаты работы навыков — не коммитить (могут содержать данные заказчиков)
+work/
+research/
+audit/
+qa/
+icons-work/
+b24-audit-log.jsonl
+*.local.json
+.claude/settings.local.json
+
+# наблюдения task-observer — могут содержать конфиденциальные детали
+skill-observations/
+skill-updates/
+
+# секреты
+.env
+*.pem
+*.pfx

@@ -1,65 +1,66 @@
-# Installs Claude Code skills and plugins for the current Windows user.
-# Skills are copied to %USERPROFILE%\.claude\skills, plugin marketplaces
-# are registered in %USERPROFILE%\.claude\settings.json, so they work in
-# every folder on this machine, not just this repository.
+# Installs the NOVAPROM Claude Code environment for the current Windows user.
+# The work is done by scripts/install_novaprom.py (one installer for Windows, macOS, Linux and cloud):
+# skills, subagents, the safety hook and the routing rules (global/NOVAPROM.md) are copied to
+# %USERPROFILE%\.claude and become available in EVERY project (Claude Code CLI and the Code tab of the
+# Claude app); docs/settings.proposed.json is merged into %USERPROFILE%\.claude\settings.json.
+# Replaced skills/agents are kept in %USERPROFILE%\.claude\novaprom-backups\<timestamp>;
+# CLAUDE.md and settings.json get a *.bak-<timestamp> copy. Safe to run again (updates only what changed).
 #
-# Run from the repository root:
-#   powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
+# Easiest: double-click scripts\install-windows.cmd (it also runs "git pull" first).
+# Or from the repository root:
+#   powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1          install / update
+#   powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 -Check   only check
 
-$ErrorActionPreference = 'Stop'
+param([switch]$Check)
 
+$ErrorActionPreference = 'Continue'
 $repoRoot  = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$claudeDir = Join-Path $env:USERPROFILE '.claude'
-$skillsSrc = Join-Path $repoRoot '.claude\skills'
-$skillsDst = Join-Path $claudeDir 'skills'
+$installer = Join-Path $repoRoot 'scripts\install_novaprom.py'
+$req       = Join-Path $repoRoot 'scripts\requirements-novaprom.txt'
 
-# 1. Skills: copy into the user-level skills folder
-New-Item -ItemType Directory -Force -Path $skillsDst | Out-Null
-Copy-Item -Recurse -Force -Path (Join-Path $skillsSrc '*') -Destination $skillsDst
-Write-Host "[OK] Skills installed to $skillsDst"
+# Python is required by the installer, the safety hook and the calculation scripts.
+# "python" from WindowsApps is the Microsoft Store stub, not a real interpreter.
+$python = Get-Command python -ErrorAction SilentlyContinue |
+    Where-Object { $_.Source -notlike '*\WindowsApps\*' } | Select-Object -First 1
+if (-not $python) {
+    Write-Warning 'Python not found (or only the Microsoft Store stub). Install Python 3.11+ from python.org and tick "Add python.exe to PATH" (the safety hook calls "python"). Then run this script again.'
+    exit 1
+}
+$py = $python.Source
+Write-Host "[OK] Python: $(& $py --version) ($py)"
 
-# 2. Plugins: register marketplaces and enable plugins in user settings
-$settingsPath = Join-Path $claudeDir 'settings.json'
-if (Test-Path $settingsPath) {
-    Copy-Item -Force $settingsPath "$settingsPath.bak"
-    $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
-    Write-Host "[OK] Existing settings backed up to $settingsPath.bak"
-} else {
-    $settings = [pscustomobject]@{}
+if ($Check) {
+    & $py $installer --check
+    exit $LASTEXITCODE
 }
 
-foreach ($key in 'extraKnownMarketplaces', 'enabledPlugins') {
-    if (-not $settings.PSObject.Properties[$key]) {
-        $settings | Add-Member -MemberType NoteProperty -Name $key -Value ([pscustomobject]@{})
+& $py $installer
+$rc = $LASTEXITCODE
+
+# Python packages for the calculation scripts: ask first, install for the current user only.
+& $py -c "import importlib.util as u, sys; sys.exit(0 if all(u.find_spec(m) for m in ('CoolProp','openpyxl','ezdxf','matplotlib','PIL','yaml')) else 1)"
+if ($LASTEXITCODE -ne 0) {
+    $answer = Read-Host 'Install the Python packages for the calculation scripts now (pip install --user -r scripts\requirements-novaprom.txt)? [y/N]'
+    if ($answer -match '^[yY]') {
+        & $py -m pip install --user -r $req
+        & $py $installer --check
+    } else {
+        Write-Host "Later:  python -m pip install --user -r `"$req`""
     }
 }
 
-$marketplaces = @{
-    'thedotmack'              = 'thedotmack/claude-mem'
-    'superpowers-marketplace' = 'obra/superpowers-marketplace'
-    'impeccable'              = 'pbakaus/impeccable'
-}
-foreach ($name in $marketplaces.Keys) {
-    $entry = [pscustomobject]@{
-        source = [pscustomobject]@{ source = 'github'; repo = $marketplaces[$name] }
-    }
-    if ($settings.extraKnownMarketplaces.PSObject.Properties[$name]) {
-        $settings.extraKnownMarketplaces.PSObject.Properties.Remove($name)
-    }
-    $settings.extraKnownMarketplaces | Add-Member -MemberType NoteProperty -Name $name -Value $entry
-}
-
-$plugins = @('claude-mem@thedotmack', 'superpowers@superpowers-marketplace', 'impeccable@impeccable')
-foreach ($plugin in $plugins) {
-    if ($settings.enabledPlugins.PSObject.Properties[$plugin]) {
-        $settings.enabledPlugins.PSObject.Properties.Remove($plugin)
-    }
-    $settings.enabledPlugins | Add-Member -MemberType NoteProperty -Name $plugin -Value $true
-}
-
-$settings | ConvertTo-Json -Depth 10 | Set-Content -Path $settingsPath -Encoding UTF8
-Write-Host "[OK] Plugins registered in $settingsPath"
 Write-Host ''
-Write-Host 'Done! Restart Claude Code. On first start it will ask to trust the'
-Write-Host 'plugin marketplaces (thedotmack, superpowers-marketplace, impeccable)'
-Write-Host '- confirm to finish the plugin installation.'
+Write-Host 'Next steps (details: docs\ARCHITECTURE.md, section 7):'
+Write-Host '  1. Restart Claude Code (CLI or the Code tab of the Claude app). Plugins from settings install on start;'
+Write-Host '     confirm trust for the plugin marketplaces if asked. Check in Claude Code: /skills, /agents, /hooks, /plugin.'
+Write-Host '  2. Document skills (docx, xlsx, pptx, pdf, skill-creator) and your own claude.ai skills (lead-triage,'
+Write-Host '     humanizer) come from your Claude account: sign in with /login using the Claude account (not an API key);'
+Write-Host '     they are listed in /plugin as ...@synced. Enable them in claude.ai Settings > Capabilities.'
+Write-Host '  3. claude-mem keeps a local memory of every session in %USERPROFILE%\.claude-mem. Keep customer-document'
+Write-Host '     folders out of it with CLAUDE_MEM_EXCLUDED_PROJECTS - see docs\ARCHITECTURE.md, section 7.'
+Write-Host '  4. agent-skills (or superpowers - pick one, they overlap) / impeccable: enable only in a code project'
+Write-Host '     (website, scripts) - add to that project''s .claude\settings.local.json:'
+Write-Host '     { "enabledPlugins": { "agent-skills@novaprom": true } }'
+Write-Host '  5. List protected folders (one path per line) in %USERPROFILE%\.claude\novaprom-protected-paths.txt'
+Write-Host '  6. To update later: double-click scripts\install-windows.cmd (git pull + this script).'
+exit $rc

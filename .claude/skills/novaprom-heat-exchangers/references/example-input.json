@@ -1,0 +1,8 @@
+{"cases": [
+ {"type": "heat_balance", "hot": {"G": 5.0, "cp": 4.19, "t_in": 80, "t_out": null}, "cold": {"G": 9.44, "cp": 2.3, "t_in": 5, "t_out": 25}},
+ {"type": "lmtd", "T1": 80, "T2": 59.3, "t1": 5, "t2": 25, "flow": "1-2n"},
+ {"type": "overall_u", "h_o": 3000, "h_i": 600, "R_fo": 0.0002, "R_fi": 0.0002, "d_o": 25, "d_i": 20, "k_wall": 45},
+ {"type": "area", "Q": 434.4, "U": 350, "dT": 53.5, "margin": 0.15},
+ {"type": "tubes", "A": 26.7, "d_o": 25, "d_i": 20, "L": 3, "passes": 2, "G_t": 9.44, "rho_t": 43, "w_max": 20},
+ {"type": "bundle", "N_t": 114, "d_o": 25, "K1": 0.249, "n1": 2.207, "clearance": 15}
+]}

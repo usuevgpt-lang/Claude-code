@@ -1,0 +1,2 @@
+{"cases": [{"type": "bayonet", "p": 10, "D_seal": 1050, "n": 8, "k_n": 1.3, "b": 150, "h": 60, "e": 40, "arm": 20, "tau_allow": 120, "bend_allow": 200, "crush_allow": 300},
+ {"type": "locking_ring", "p": 10, "D_seal": 1050, "k_n": 1.2, "D_shear": 1120, "h_ring": 70, "D_contact": 1110, "e_contact": 30, "cut_frac": 0.02, "tau_allow": 120, "crush_allow": 300}]}
