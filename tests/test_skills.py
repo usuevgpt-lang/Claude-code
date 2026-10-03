@@ -15,6 +15,7 @@ import math
 import subprocess
 import sys
 import unittest
+import contextlib
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -251,6 +252,88 @@ class Bitrix(unittest.TestCase):
             os.chdir(old_cwd)
 
 
+class ReviewFixes(unittest.TestCase):
+    """Регрессии по итогам ревью 2026-10-03."""
+
+    BASE = {"shell": "cyl", "p": 6.3, "D": 1000, "s": 22, "c": 2.8, "sigma": 177, "d": 199, "cs": 2.0,
+            "s1": 12, "l1": 200, "sigma1": 160}
+
+    def test_reinforced_opening_passes(self):
+        r = vessel.opening({**self.BASE, "s2": 20, "l2": 150, "sigma2": 177})
+        self.assertGreaterEqual(step_value(r, "A"), step_value(r, "A_треб"))
+        self.assertEqual(r.verdict(), "ВЫПОЛНЕНО")
+
+    def test_thin_nozzle_fails_even_without_reinforcement(self):
+        r = vessel.opening({**self.BASE, "s": 40, "d": 50, "s1": 2.5})
+        self.assertEqual(r.verdict(), "НЕ ВЫПОЛНЕНО")
+        self.assertTrue(any("Стенка штуцера" in c.text and not c.ok for c in r.checks))
+
+    def test_unit_conversion(self):
+        r = vessel.cyl_internal({"p": {"value": 63, "unit": "бар", "source": "ОЛ"}, "D": {"value": 1.0, "unit": "м"},
+                                 "s": 22, "c": 2.8, "sigma": 177, "phi": 1.0})
+        self.assertAlmostEqual(step_value(r, "s_p"), 18.12, places=2)
+        with self.assertRaises(SystemExit):
+            vessel.cyl_internal({"p": 6.3, "D": {"value": 1.0, "unit": "кг"}, "s": 22, "c": 2.8, "sigma": 177, "phi": 1})
+
+    def test_flat_head_holes_with_source_and_prolate_head_mass(self):
+        vessel.flat_head({"p": 1, "Dp": 300, "K": 0.41, "s": 30, "c": 2, "sigma": 177, "phi": 1,
+                          "openings_d": {"value": [50], "source": "эскиз"}})
+        r = vessel.mass({"rho": 7850, "parts": [{"kind": "ellipsoidal_head", "D": 1000, "s": 10, "H": 600}]})
+        self.assertGreater(step_value(r, "M"), 0)
+
+    def test_given_z_is_not_ideal_gas(self):
+        r = gas.c_properties({"gas": {"rho_st": 0.68, "Z": {"value": 0.88, "source": "x"}}, "z_method": "value"},
+                             {"p_abs": 5.5, "t": 10})
+        self.assertAlmostEqual(step_value(r, "ρ"), 43.35, places=1)
+
+    def test_exit_code_for_failed_checks(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "in.json"
+            f.write_text(json.dumps({"elements": [{"type": "cyl_internal", "p": 6.3, "D": 1000, "s": 10, "c": 2,
+                                                   "sigma": 177, "phi": 1}]}), encoding="utf-8")
+            p = subprocess.run([sys.executable, str(SK / "novaprom-pressure-vessels/scripts/vessel_calc.py"),
+                                str(f), "--out", str(Path(tmp) / "r.json")], capture_output=True)
+            self.assertEqual(p.returncode, 3)
+            self.assertEqual(json.loads((Path(tmp) / "r.json").read_text(encoding="utf-8"))[0]["verdict"],
+                             "НЕ ВЫПОЛНЕНО")
+
+    def test_b24_secret_never_printed(self):
+        import os
+        old = os.environ.get("B24_WEBHOOK_URL")
+        os.environ["B24_WEBHOOK_URL"] = "https://p/rest/1/" + "SECRETCODE123"
+        try:
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                b24.main(["crm.deal.list", "--dry-run"])
+            self.assertNotIn("SECRETCODE123", buf.getvalue())
+            with self.assertRaises(SystemExit):
+                b24.check_method("crm.deal.list\n")
+        finally:
+            if old is None:
+                os.environ.pop("B24_WEBHOOK_URL", None)
+            else:
+                os.environ["B24_WEBHOOK_URL"] = old
+
+    def test_b24_truncation_is_reported(self):
+        import os
+        import tempfile
+        old_call, old_cwd = b24.call, os.getcwd()
+        os.environ["B24_WEBHOOK_URL"] = "https://p.ru/rest/1/abcdef/"
+        b24.call = lambda base, method, params, timeout=30.0: {"result": [1], "next": params.get("start", 0) + 1,
+                                                                "total": 999}
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                os.chdir(tmp)
+                with redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    rc = b24.main(["crm.status.list", "--all", "--max-pages", "3", "--sleep", "0",
+                                   "--out", str(Path(tmp) / "o.json")])
+                self.assertEqual(rc, 3)
+        finally:
+            b24.call = old_call
+            os.chdir(old_cwd)
+
+
 class MergeSettings(unittest.TestCase):
     PROP = json.loads((ROOT / "docs/settings.proposed.json").read_text(encoding="utf-8"))
 
@@ -267,6 +350,17 @@ class MergeSettings(unittest.TestCase):
         self.assertFalse(out["enabledPlugins"]["claude-mem@thedotmack"])
         self.assertNotIn("thedotmack", out["extraKnownMarketplaces"])
         self.assertTrue(out["enabledPlugins"]["frontend-design@claude-plugins-official"])
+
+    def test_upgrades_old_novaprom_hook_keeps_foreign(self):
+        cur = {"hooks": {"PreToolUse": [
+            {"matcher": "Bash", "hooks": [{"type": "command", "command": "python novaprom_guard.py"}]},
+            {"matcher": "Write", "hooks": [{"type": "command", "command": "my-own-hook"}]}]}}
+        out, _ = merge.merge(cur, self.PROP, [], [])
+        groups = out["hooks"]["PreToolUse"]
+        self.assertIn("my-own-hook", json.dumps(groups))
+        self.assertNotIn("python novaprom_guard.py", json.dumps(groups))
+        self.assertEqual(sum("novaprom_guard" in json.dumps(g) for g in groups),
+                         len(self.PROP["hooks"]["PreToolUse"]))
 
     def test_idempotent(self):
         once, _ = merge.merge({}, self.PROP, [], [])

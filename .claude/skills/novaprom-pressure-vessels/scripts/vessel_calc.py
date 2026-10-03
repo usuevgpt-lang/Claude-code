@@ -36,7 +36,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from _calcreport import CalcReport, emit, fmt, load_input  # noqa: E402
+from _calcreport import NO_SOURCE, CalcReport, Param, emit, fmt, load_input  # noqa: E402
 
 G34233_1 = "ГОСТ 34233.1-2017 (общие требования, допускаемые напряжения, прибавки)"
 G34233_2 = "ГОСТ 34233.2-2017 (обечайки, днища, крышки)"
@@ -195,7 +195,7 @@ def flat_head(d: dict) -> CalcReport:
     sig = rep.get(d, "sigma", "Допускаемое напряжение [σ]", "МПа")
     phi = rep.get(d, "phi", "Коэффициент прочности сварных швов φ", "—")
     c = get_c(rep, d)
-    holes = d.get("openings_d")  # список диаметров отверстий, мм
+    holes = rep.get(d, "openings_d", "Диаметры отверстий в днище (список)", "мм", required=False)
     if "K0" in d:
         K0 = rep.get(d, "K0", "Коэффициент ослабления отверстиями K0", "—")
     elif holes:
@@ -226,7 +226,8 @@ def flat_head(d: dict) -> CalcReport:
     rep.check(f"[p] = {fmt(pa)} ≥ p = {fmt(p)} МПа", pa >= p)
     r = (s - c) / Dp
     rep.check(f"(s1 − c)/D_p = {fmt(r)} ≤ 0,11", r <= 0.11,
-              "при превышении — поправка по ГОСТ 34233.2 (проверить условие в тексте стандарта)")
+              "при превышении ГОСТ 34233.2 уменьшает [p] поправочным коэффициентом, который скрипт не применяет: "
+              "[p] выше завышено — выполнить расчёт по тексту стандарта")
     return rep
 
 
@@ -280,28 +281,42 @@ def opening(d: dict) -> CalcReport:
                   "d_0 = 2·((s − c)/s_p − 0,8)·√(D_p·(s − c))",
                   f"2·(({fmt(s)} − {fmt(c)})/{fmt(sp)} − 0,8)·√({fmt(Dp)}·{fmt(s - c)})",
                   2 * ((s - c) / sp - 0.8) * L0, "мм", "d_0")
-    if dp <= d0:
+    need_reinf = dp > d0
+
+    # стенка штуцера проверяется всегда, когда задана (и обязательна, если нужна проверка укрепления)
+    s1 = rep.get(d, "s1", "Исполнительная толщина стенки штуцера s1", "мм", required=need_reinf)
+    s1p = None
+    if s1 is not None:
+        sig1 = rep.get(d, "sigma1", "Допускаемое напряжение материала штуцера [σ]1", "МПа")
+        phi1 = rep.get(d, "phi1", "Коэффициент прочности продольного шва штуцера φ1", "—", default=1.0)
+        s1p = rep.step("Расчётная толщина стенки штуцера", G34233_3,
+                       "s_1p = p·(d + 2c_s) / (2·φ1·[σ]1 − p)",
+                       f"{fmt(p)}·{fmt(dp)} / (2·{fmt(phi1)}·{fmt(sig1)} − {fmt(p)})",
+                       p * dp / (2 * phi1 * sig1 - p), "мм", "s_1p")
+        rep.check(f"Стенка штуцера: s1 = {fmt(s1)} ≥ s_1p + c_s = {fmt(s1p + cs)} мм", s1 >= s1p + cs)
+    else:
+        rep.warn("Толщина стенки штуцера s1 не задана — прочность стенки штуцера не проверена.")
+
+    base = Dk if shell == "cone" else D
+    lim = 0.6 if shell in ("ellipsoidal", "hemispherical") else 1.0
+    ratio = (dp - 2 * cs) / base
+    rep.check(f"Применимость: (d_p − 2c_s)/D = {fmt(ratio)} ≤ {lim}", ratio <= lim,
+              "условие применимости метода укрепления ГОСТ 34233.3 — сверить с пунктом стандарта")
+
+    if not need_reinf:
         rep.check(f"d_p = {fmt(dp)} ≤ d_0 = {fmt(d0)} мм — дополнительное укрепление не требуется", True)
         return rep
-    rep.check(f"d_p = {fmt(dp)} ≤ d_0 = {fmt(d0)} мм", False,
-              "требуется проверка условия укрепления (ниже)")
+    rep.step("Сравнение с d_0: требуется проверка условия укрепления", G34233_3,
+             "d_p > d_0", f"{fmt(dp)} > {fmt(d0)}", dp - d0, "мм", "d_p − d_0")
 
-    s1 = rep.get(d, "s1", "Исполнительная толщина стенки штуцера s1", "мм")
     l1 = rep.get(d, "l1", "Исполнительная длина наружной части штуцера l1", "мм")
-    sig1 = rep.get(d, "sigma1", "Допускаемое напряжение материала штуцера [σ]1", "МПа")
-    phi1 = rep.get(d, "phi1", "Коэффициент прочности продольного шва штуцера φ1", "—", default=1.0)
-    lp_avail = d.get("l")
+    lp_avail = rep.get(d, "l", "Расстояние до ближайшего отверстия/несущего элемента l", "мм", required=False)
     lp = min(L0, lp_avail) if lp_avail else L0
     rep.step("Ширина зоны укрепления в обечайке", G34233_3,
              "l_p = min{l; √(D_p·(s − c))}", f"√({fmt(Dp)}·{fmt(s - c)}) = {fmt(L0)}"
              + (f"; l = {fmt(lp_avail)}" if lp_avail else ""), lp, "мм", "l_p")
     if not lp_avail:
         rep.assume("Расстояние до ближайшего отверстия/несущего элемента не задано: l_p = √(D_p(s−c)).")
-    s1p = rep.step("Расчётная толщина стенки штуцера", G34233_3,
-                   "s_1p = p·(d + 2c_s) / (2·φ1·[σ]1 − p)",
-                   f"{fmt(p)}·{fmt(dp)} / (2·{fmt(phi1)}·{fmt(sig1)} − {fmt(p)})",
-                   p * dp / (2 * phi1 * sig1 - p), "мм", "s_1p")
-    rep.check(f"Стенка штуцера: s1 = {fmt(s1)} ≥ s_1p + c_s = {fmt(s1p + cs)} мм", s1 >= s1p + cs)
     l1p = rep.step("Расчётная длина наружной части штуцера", G34233_3,
                    "l_1p = min{l1; 1,25·√((d + 2c_s)·(s1 − c_s))}",
                    f"min{{{fmt(l1)}; 1,25·√({fmt(dp)}·({fmt(s1)} − {fmt(cs)}))}}",
@@ -413,7 +428,14 @@ def mass(d: dict) -> CalcReport:
     rep = CalcReport(f"Масса деталей — {d.get('name', '')}")
     rho = rep.get(d, "rho", "Плотность материала ρ", "кг/м³")
     total = 0.0
-    for i, part in enumerate(d.get("parts", []), 1):
+    parts = d.get("parts", [])
+    parts = parts.get("value", []) if isinstance(parts, dict) else parts
+    for i, raw_part in enumerate(parts, 1):
+        part = {k: (v.get("value") if isinstance(v, dict) else v) for k, v in raw_part.items()}
+        if any(isinstance(v, dict) for v in raw_part.values()):
+            rep.params.append(Param(f"parts[{i}]", f"Деталь {i}: {part.get('kind')}", "см. ход расчёта", "",
+                                    "; ".join(f"{k}: {v.get('source')}" for k, v in raw_part.items()
+                                              if isinstance(v, dict) and v.get("source")) or NO_SOURCE))
         kind = part["kind"]
         n = part.get("qty", 1)
         if kind == "cylinder":
@@ -428,9 +450,12 @@ def mass(d: dict) -> CalcReport:
             cc = H + s / 2
             if abs(a - cc) < 1e-9:
                 area = 2 * math.pi * a * a
-            else:
+            elif cc < a:   # сплюснутый полуэллипсоид (обычные днища, H < D/2)
                 e = math.sqrt(1 - (cc / a) ** 2)
                 area = math.pi * a * a * (1 + (1 - e * e) / e * math.atanh(e))
+            else:          # вытянутый полуэллипсоид (H > D/2)
+                e = math.sqrt(1 - (a / cc) ** 2)
+                area = math.pi * a * a * (1 + cc / (a * e) * math.asin(e))
             area += math.pi * (D + s) * h1
             m = rho * area * s * 1e-9
             rep.step(f"{i}. Днище эллиптическое Ø{fmt(D)}×{fmt(s)}, H={fmt(H)}, h1={fmt(h1)} (×{n})",

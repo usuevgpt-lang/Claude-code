@@ -109,7 +109,14 @@ class Gas:
                                    "ρ_с = ρ(p_с, T_с, состав)", "CoolProp HEOS", st.rhomass(), "кг/м³", "ρ_с")
         else:
             raise SystemExit("Задайте gas.rho_st или gas.composition (при установленном CoolProp).")
-        self.z_value = g.get("Z")
+        self.z_value = None
+        self.z_st_value = None
+        if self.method == "value":
+            if "Z" not in g:
+                raise SystemExit("z_method=value, но gas.Z (Z в рабочих условиях) не задан")
+            self.z_value = rep.get(g, "Z", "Коэффициент сжимаемости в рабочих условиях Z (задан)", "—")
+        if "Z_st" in g:
+            self.z_st_value = rep.get(g, "Z_st", "Коэффициент сжимаемости при стандартных условиях Z_с", "—")
         rep.norm(N_GOST2939)
 
     def z(self, p: float, T: float, label: str = "", record: bool = True) -> float:
@@ -118,10 +125,16 @@ class Gas:
         if self.comp and coolprop_available():
             methods["coolprop"] = lambda: z_coolprop(p, T, self.comp)
         if self.method == "value":
-            if self.z_value is None:
-                raise SystemExit("z_method=value, но gas.Z не задан")
-            zval = self.z_value["value"] if isinstance(self.z_value, dict) else self.z_value
-            return zval
+            if record:
+                zg = z_gazprom(p, T, self.rho_st)
+                self.rep.step(f"Коэффициент сжимаемости {label} (задан во входных данных)".strip(),
+                              "значение из входных данных (источник — в таблице исходных данных)",
+                              "Z = задано", f"для сравнения по СТО Газпром 2-3.5-051: Z = {fmt(zg)}",
+                              self.z_value, "", "Z")
+                if abs(zg - self.z_value) / self.z_value > 0.02:
+                    self.rep.warn(f"Заданный Z = {fmt(self.z_value)} отличается от корреляции СТО Газпром "
+                                  f"({fmt(zg)}) более чем на 2 % — проверьте условия, к которым относится Z.")
+            return self.z_value
         if self.method not in methods:
             raise SystemExit(f"Метод Z '{self.method}' недоступен (coolprop требует gas.composition и пакет CoolProp)")
         if not record:
@@ -143,10 +156,21 @@ class Gas:
                               "уточнить по ГОСТ 30319.2/30319.3-2015 или по полному составу газа.")
         return z
 
+    def z_st(self) -> float:
+        """Z при стандартных условиях: из входных данных (gas.Z_st) или по корреляции выбранного метода.
+        При z_method=value заданный Z относится к рабочим условиям, поэтому Z_с считается по СТО Газпром."""
+        if self.z_st_value is not None:
+            return self.z_st_value
+        if self.method in ("value", "gazprom"):
+            return z_gazprom(P_ST, T_ST, self.rho_st)
+        if self.method == "papay":
+            return z_papay(P_ST, T_ST, self.rho_st)
+        return z_coolprop(P_ST, T_ST, self.comp)
+
     @property
     def R_s(self) -> float:
         """Удельная газовая постоянная, Дж/(кг·К), из ρ_с с учётом Z_с."""
-        zc = self.z(P_ST, T_ST, record=False)
+        zc = self.z_st()
         return P_ST * 1e6 / (self.rho_st * zc * T_ST)
 
 
@@ -166,7 +190,7 @@ def state(rep: CalcReport, gas: Gas, d: dict, pkey: str = "p", label: str = "") 
     t = rep.get(d, "t" if pkey == "p" else f"t{pkey[-1]}", f"Температура газа {label}".strip(), "°C")
     T = t + 273.15
     z = gas.z(p, T, label)
-    zc = gas.z(P_ST, T_ST, record=False)
+    zc = gas.z_st()
     rho = rep.step(f"Плотность газа в рабочих условиях {label}".strip(), N_GOST2939,
                    "ρ = ρ_с·(p/p_с)·(T_с/T)·(Z_с/Z)",
                    f"{fmt(gas.rho_st)}·({fmt(p)}/{P_ST})·({T_ST}/{fmt(T)})·({fmt(zc)}/{fmt(z)})",
@@ -175,7 +199,7 @@ def state(rep: CalcReport, gas: Gas, d: dict, pkey: str = "p", label: str = "") 
 
 
 def q_work(rep: CalcReport, gas: Gas, Qst: float, p: float, T: float, z: float) -> float:
-    zc = gas.z(P_ST, T_ST, record=False)
+    zc = gas.z_st()
     return rep.step("Рабочий (фактический) объёмный расход", N_GOST2939,
                     "Q_р = Q_с·(p_с/p)·(T/T_с)·(Z/Z_с)",
                     f"{fmt(Qst)}·({P_ST}/{fmt(p)})·({fmt(T)}/{T_ST})·({fmt(z)}/{fmt(zc)})",

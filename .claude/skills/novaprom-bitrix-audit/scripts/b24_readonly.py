@@ -39,12 +39,13 @@ DENY_HINT = re.compile(r"(add|update|delete|set|start|terminate|kill|bind|unbind
 LOG_FILE = "b24-audit-log.jsonl"
 
 
-def mask(url: str) -> str:
-    return re.sub(r"/rest/(\d+)/[^/]+/", r"/rest/\1/****/", url)
+def mask(text: str) -> str:
+    """Скрыть код вебхука в любом тексте (с завершающим «/» и без него)."""
+    return re.sub(r"/rest/(\d+)/[^/\s'\"?#]+", r"/rest/\1/****", str(text))
 
 
 def check_method(method: str) -> None:
-    if method == "batch" or not ALLOWED.match(method):
+    if method == "batch" or not ALLOWED.fullmatch(method):
         hint = " (похоже на метод записи)" if DENY_HINT.search(method) else ""
         raise SystemExit(f"ОТКЛОНЕНО: метод '{method}' не входит в белый список чтения{hint}. "
                          "Изменения в Bitrix24 — только вручную пользователем или с его явного разрешения "
@@ -64,16 +65,16 @@ def parse_params(items: list[str]) -> dict:
 def call(base: str, method: str, params: dict, timeout: float = 30.0) -> dict:
     url = base.rstrip("/") + "/" + method + ".json"
     data = urllib.parse.urlencode(params, doseq=True).encode()
-    req = urllib.request.Request(url, data=data, method="POST",
-                                 headers={"Content-Type": "application/x-www-form-urlencoded"})
     try:
+        req = urllib.request.Request(url, data=data, method="POST",
+                                     headers={"Content-Type": "application/x-www-form-urlencoded"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", "replace")[:500]
-        raise SystemExit(f"HTTP {e.code} при вызове {method} ({mask(url)}): {body}")
-    except urllib.error.URLError as e:
-        raise SystemExit(f"Сетевая ошибка при вызове {method} ({mask(url)}): {e.reason}")
+        raise SystemExit(f"HTTP {e.code} при вызове {method} ({mask(url)}): {mask(body)}")
+    except (ValueError, OSError) as e:  # URLError, InvalidURL, таймауты — без кода вебхука в тексте
+        raise SystemExit(f"Ошибка при вызове {method} ({mask(url)}): {mask(e)}")
 
 
 def log(method: str, params: dict, count: int | None, note: str = "") -> None:
@@ -96,11 +97,11 @@ def main(argv=None) -> int:
 
     check_method(a.method)
     params = parse_params(a.param)
-    base = os.environ.get("B24_WEBHOOK_URL", "")
+    base = os.environ.get("B24_WEBHOOK_URL", "").strip()
     if a.dry_run:
         print(f"DRY RUN: {a.method} {params} → {mask(base) if base else '(B24_WEBHOOK_URL не задан)'}")
         return 0
-    if not re.match(r"^https://[^/]+/rest/\d+/[^/]+/?$", base):
+    if not re.fullmatch(r"https://[^/\s]+/rest/\d+/[^/\s]+/?", base):
         raise SystemExit("Задайте B24_WEBHOOK_URL=https://<портал>/rest/<id>/<код>/ (только HTTPS). "
                          "Не сохраняйте его в файлах репозитория.")
 
@@ -133,8 +134,9 @@ def main(argv=None) -> int:
         start = nxt
         time.sleep(a.sleep)
 
+    truncated = a.all and nxt is not None
     count = len(results) if isinstance(results, list) else None
-    log(a.method, params, count)
+    log(a.method, params, count, "ОБРЕЗАНО по --max-pages" if truncated else "")
     text = json.dumps(results, ensure_ascii=False, indent=2)
     if a.out:
         with open(a.out, "w", encoding="utf-8") as f:
@@ -143,6 +145,10 @@ def main(argv=None) -> int:
     else:
         getattr(sys.stdout, "reconfigure", lambda **_: None)(encoding="utf-8")
         print(text)
+    if truncated:
+        print(f"ВНИМАНИЕ: получено {pages} страниц(ы) из-за ограничения --max-pages, данные НЕПОЛНЫЕ "
+              f"(следующая позиция start={nxt}, всего по ответу API: {resp.get('total', '?')}).", file=sys.stderr)
+        return 3
     return 0
 
 

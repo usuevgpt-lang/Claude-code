@@ -19,6 +19,36 @@ from dataclasses import dataclass, field
 from typing import Any
 
 NO_SOURCE = "ИСТОЧНИК НЕ УКАЗАН"
+EXIT_CHECKS_FAILED = 3   # 0 — все проверки выполнены; 3 — есть невыполненные; 1/2 — ошибка входа/аргументов
+
+# Пересчёт единиц: множитель к базовой единице группы. Единица во входном объекте
+# ({"value": 1.0, "unit": "м"}) пересчитывается в ожидаемую скриптом; несовместимая — ошибка.
+_UNIT_GROUPS = [
+    {"мм": 1e-3, "mm": 1e-3, "см": 1e-2, "cm": 1e-2, "м": 1.0, "m": 1.0, "мкм": 1e-6, "µm": 1e-6, "um": 1e-6,
+     "дюйм": 0.0254, "in": 0.0254},
+    {"Па": 1.0, "Pa": 1.0, "кПа": 1e3, "kPa": 1e3, "МПа": 1e6, "MPa": 1e6, "бар": 1e5, "bar": 1e5,
+     "кгс/см²": 98066.5, "кгс/см2": 98066.5, "psi": 6894.757},
+    {"Н": 1.0, "N": 1.0, "кН": 1e3, "kN": 1e3, "МН": 1e6, "MN": 1e6},
+    {"кг": 1.0, "kg": 1.0, "т": 1e3, "t": 1e3},
+    {"Вт": 1.0, "W": 1.0, "кВт": 1e3, "kW": 1e3, "МВт": 1e6, "MW": 1e6},
+    {"м³/ч": 1.0, "m3/h": 1.0, "м3/ч": 1.0, "м³/с": 3600.0, "m3/s": 3600.0},
+]
+_TEMPERATURE = {"°C", "C", "К", "K"}
+
+
+def convert_unit(value: Any, given: str, expected: str) -> Any:
+    """Пересчитать value из единицы given в expected; SystemExit, если единицы несовместимы."""
+    g, e = (given or "").strip(), (expected or "").strip()
+    if not g or not e or g == e or not isinstance(value, (int, float)):
+        return value
+    if g in _TEMPERATURE and e in _TEMPERATURE:
+        to_k = value + 273.15 if g in ("°C", "C") else value
+        return to_k - 273.15 if e in ("°C", "C") else to_k
+    for grp in _UNIT_GROUPS:
+        if g in grp and e in grp:
+            return value * grp[g] / grp[e]
+    raise SystemExit(f"Единица «{g}» не может быть пересчитана в ожидаемую «{e}». "
+                     f"Задайте значение в «{e}».")
 
 
 def fmt(x: Any, digits: int = 4) -> str:
@@ -90,8 +120,14 @@ class CalcReport:
             self.warnings.append(f"Параметр «{name}» ({key}) принят по умолчанию = {fmt(value)} {unit}.")
         elif isinstance(raw, dict):
             value = raw.get("value")
-            unit = raw.get("unit", unit)
             source = raw.get("source") or NO_SOURCE
+            given = raw.get("unit")
+            if given and unit and given.strip() != unit:
+                converted = convert_unit(value, given, unit)
+                self.assumptions.append(f"«{name}»: {fmt(value)} {given} пересчитано в {fmt(converted)} {unit}.")
+                value = converted
+            elif given and not unit:
+                unit = given
         else:
             value, source = raw, NO_SOURCE
         if source == NO_SOURCE:
@@ -188,11 +224,12 @@ def load_input(argv: list[str] | None = None) -> tuple[dict, dict]:
 
 
 def emit(reports: list[CalcReport], opts: dict) -> int:
-    if opts.get("json"):
+    """Вывести отчёты; код возврата 0 — проверки выполнены, EXIT_CHECKS_FAILED — есть невыполненные."""
+    out = opts.get("out")
+    if opts.get("json") or (out and str(out).lower().endswith(".json")):
         text = json.dumps([r.to_dict() for r in reports], ensure_ascii=False, indent=2)
     else:
         text = "\n\n".join(r.to_markdown() for r in reports)
-    out = opts.get("out")
     if out:
         with open(out, "w", encoding="utf-8") as f:
             f.write(text)
@@ -200,4 +237,4 @@ def emit(reports: list[CalcReport], opts: dict) -> int:
     else:
         getattr(sys.stdout, "reconfigure", lambda **_: None)(encoding="utf-8")
         print(text)
-    return 0 if all(r.verdict() != "НЕ ВЫПОЛНЕНО" for r in reports) else 2
+    return 0 if all(r.verdict() != "НЕ ВЫПОЛНЕНО" for r in reports) else EXIT_CHECKS_FAILED
