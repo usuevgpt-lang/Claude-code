@@ -54,6 +54,9 @@ SECRET_FILE = re.compile(r"(config\.inc\.php|dbconn\.php|\.settings\.php|id_rsa|
                          r"(^|[\\/])\.env(\.(?!example$|sample$|template$|dist$)[\w-]+)?$)", re.I)
 CAD_RE = re.compile(r"SldWorks|win32com|comtypes|swconst|\.swp\b", re.I)
 CONVERTER_RE = re.compile(r"ODAFileConverter|dwg2dxf|dxf2dwg|freecadcmd", re.I)
+# Пакеты npx, проверенные novaprom-tool-vetting, — только с точной версией. Запуск без вопроса.
+VETTED_NPX = {"@firecrawl/anydoc@0.2.4"}
+CLOUD_UPLOAD_RE = re.compile(r"--ocr[\s=]+hosted|FIRECRAWL_API_(KEY|URL)|api\.firecrawl\.dev", re.I)
 REST_RE = re.compile(r"/rest/\d+/", re.I)
 WRAPPER_ONLY = re.compile(r"\s*(?:python3?(?:\.exe)?|py(?:\s+-3(?:\.\d+)?)?)\s+"
                           r"(?:\"[^\"]*b24_readonly\.py\"|'[^']*b24_readonly\.py'|\S*b24_readonly\.py)"
@@ -193,6 +196,9 @@ def installer(name: str, args: list[str]) -> str | None:
     if name in ("npm", "pnpm", "yarn", "bun") and a0 in ("install", "i", "add", "ci", "update", "up", "upgrade", "x", "dlx"):
         return "Установка npm-пакета"
     if name in ("npx", "uvx", "pnpx", "bunx"):
+        pkgs = [a for a in args if not a.startswith("-")]
+        if name == "npx" and pkgs and pkgs[0] in VETTED_NPX:
+            return None   # проверенный пакет с закреплённой версией (см. VETTED_NPX)
         return "Запуск пакета из реестра (npx/uvx) — сторонний код"
     if name in ("winget", "choco", "scoop", "apt", "apt-get", "dnf", "yum", "brew", "cargo", "gem", "go") and a0 in ("install", "add", "upgrade"):
         return "Установка программы"
@@ -303,6 +309,8 @@ def decide_shell(cmd: str, cwd: str, profile: str) -> tuple[str, str] | None:
         reasons.append("Автоматизация SolidWorks (управление CAD) — требуется явное разрешение")
     if CONVERTER_RE.search(cmd):
         reasons.append("Запуск конвертера/CAD-программы на файлах")
+    if CLOUD_UPLOAD_RE.search(cmd):
+        reasons.append("Отправка документа в облако Firecrawl (--ocr hosted) — только для открытых документов")
     if SECRET_RE.search(cmd):
         reasons.append("Доступ к файлу с секретами")
     roots = protected_paths(cwd)

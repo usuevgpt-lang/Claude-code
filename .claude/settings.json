@@ -114,6 +114,7 @@
     "superpowers@superpowers-marketplace": false,
     "impeccable@impeccable": false,
     "frontend-design@claude-plugins-official": true,
-    "novaprom-marketing@novaprom": true
+    "novaprom-marketing@novaprom": true,
+    "claude-code-setup@claude-plugins-official": true
   }
 }

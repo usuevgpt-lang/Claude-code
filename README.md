@@ -36,7 +36,7 @@ python -m unittest discover -s tests -p "test_*.py"
 ```
 
 ## Сторонние плагины
-- **frontend-design** (официальный, Anthropic) и **novaprom-marketing** (этот репозиторий) — включены.
+- **frontend-design** и **claude-code-setup** (официальные, Anthropic) и **novaprom-marketing** (этот репозиторий) — включены.
 - **superpowers** (`obra/superpowers-marketplace`) и **impeccable** (`pbakaus/impeccable`) — выключены глобально,
   включаются только в проектах кода (сайт, скрипты) через `.claude/settings.local.json` проекта.
 - **claude-mem** (`thedotmack/claude-mem`, закреплён на v13.28.0) — включён, телеметрия выключена, скрытие секретов
@@ -47,5 +47,6 @@ python -m unittest discover -s tests -p "test_*.py"
 
 ## Источники вендоренного кода
 - `web-assets` — alonw0/web-asset-generator (MIT), с исправлениями; `svg-icons` — tryopendata/skills svg-design (MIT);
+  `anydoc` — firecrawl/anydoc (MIT), CLI закреплён на 0.2.4, без облачного OCR;
   `plugins/novaprom-marketing` — coreyhaines31/marketingskills (MIT) и wondelai/skills (MIT).
   Подробности, коммиты и изменения — в `NOTICE.md` каждого навыка/плагина.

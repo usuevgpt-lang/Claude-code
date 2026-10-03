@@ -39,6 +39,7 @@
 | Независимая проверка, противоречия в расчётах | `novaprom-engineering-review` | `engineering-reviewer` |
 | ГОСТ / ТР ТС / СП / ФНП, актуальность, матрицы соответствия | `novaprom-normative-check` | `standards-compliance` |
 | ОТТ Транснефти, gap-анализ ТУ/ПМИ, замечания заказчика | `novaprom-transneft` | `transneft-specialist` |
+| Прочитать документ (doc/docx/xls/xlsx/ppt/odt/rtf/pdf) → Markdown | `anydoc` (сканы — `pdf`, локальное OCR) | — / по задаче |
 | ТУ, ПМИ, паспорт, РЭ, технический отчёт | `novaprom-tech-docs` + `docx`/`pdf`/`xlsx` | `technical-writer` |
 | Себестоимость, калькуляция, сравнение вариантов по цене | `novaprom-cost-estimation` | `cost-estimator` |
 | КП / ТКП | `novaprom-commercial-proposal` | `technical-writer` + `cost-estimator` |
@@ -55,6 +56,7 @@
 | Bitrix24 (коробка): CRM, процессы, права, аудит | `novaprom-bitrix-audit` (+ `lead-triage` для лидов) | `bitrix-auditor` |
 | Незнакомый код (PHP/JS/HTML/CSS, MODX, Bitrix) | `explain-code` | `web-developer` |
 | Найти готовый Skill (skills.sh) | `find-skills` → `novaprom-tool-vetting` | — (основная сессия) |
+| Рекомендации по настройке Claude Code для проекта | плагин `claude-code-setup` | — (основная сессия) |
 | Новый сторонний инструмент | `novaprom-tool-vetting` | — (основная сессия) |
 
 Простые вопросы — отвечать напрямую, без субагентов. Субагента вызывать, когда задача объёмная, требует

@@ -116,6 +116,7 @@ Bitrix24 — отдельная коробочная CRM.
 | `svg-icons` | SVG: проверка безопасности, рендер в реальном размере, SVGO 4, экспорт PNG/WebP | вендорен из tryopendata/skills svg-design (MIT) + собственные скрипты | resvg/cairosvg, Pillow, SVGO (с подтверждением) | чтение, запись | вендорен с изменениями | ui-designer |
 | `web-assets` | Favicon (ICO 16/32/48), app icons, webmanifest, Open Graph с кириллицей, WebP | вендорен из alonw0/web-asset-generator (MIT) с исправлениями | Pillow | чтение, скрипт, запись | вендорен с изменениями, тесты 40/40 | ui-designer |
 | `frontend-design` | Дизайн интерфейсов (официальный) | anthropics/claude-plugins-official, Apache-2.0 | — | — | **включить** плагином (раздел 7) | web-developer, ui-designer |
+| `anydoc` | Чтение документов: Word, Excel, PowerPoint, OpenDocument, RTF, EPUB, CSV, текстовый PDF → Markdown, в т.ч. старые .doc/.xls | firecrawl/anydoc @261fc25 (MIT), с правками | CLI `@firecrawl/anydoc@0.2.4` (Node 20+) | чтение; облачное OCR `--ocr hosted` — только с подтверждения (хук) | вендорен с изменениями (2026-10-03) | standards-compliance, transneft-specialist, technical-writer |
 
 ### 3.4 Маркетинг — локальный плагин `novaprom-marketing` (вендорен)
 Источник: coreyhaines31/marketingskills @ dda3841f (MIT) — выбрано 15 из 50; `tools/` (64 CLI для западных SaaS)
@@ -176,6 +177,7 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
 | Инструмент | Назначение | Источник / лицензия | Вердикт | Требует разрешения |
 |---|---|---|---|---|
 | frontend-design | Дизайн интерфейсов | anthropics/claude-plugins-official, Apache-2.0 | **установить** | установка |
+| claude-code-setup | Анализ проекта и рекомендации по автоматизации Claude Code (hooks, skills, MCP, субагенты); только чтение | anthropics/claude-plugins-official, Apache-2.0 | **включён** (2026-10-03) | — |
 | novaprom-marketing | Маркетинг/SEO | этот репозиторий (локальный маркетплейс `novaprom`) | установить (в проектах сайта/маркетинга) | установка |
 | Bitrix24 DEV MCP (документация) | Справка по REST API | официальный Bitrix24, `https://mcp-dev.bitrix24.tech/mcp`, без доступа к данным | рекомендовано | подключение |
 | chrome-devtools-mcp 1.10.1 | QA: консоль, сеть, трассы, Lighthouse | Google, Apache-2.0; флаги `--isolated --no-usage-statistics --no-performance-crux` | рекомендовано | подключение; управляет браузером |
