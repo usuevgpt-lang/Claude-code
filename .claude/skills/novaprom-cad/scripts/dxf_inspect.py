@@ -3,6 +3,13 @@
 
 Запуск:
     python dxf_inspect.py drawing.dxf [--json out.json] [--render preview.png] [--texts 50]
+                          [--tol 0.01] [--layers CUT,0]
+
+Контуры: замкнутые сущности (CIRCLE, замкнутые LWPOLYLINE/POLYLINE/SPLINE, полный ELLIPSE) плюс цепочки,
+собранные из незамкнутых LINE/ARC/LWPOLYLINE/POLYLINE/SPLINE/дуг ELLIPSE по совпадению концов в пределах
+--tol мм (типичная развёртка SolidWorks — отрезки и дуги). Длина реза — сумма длин всей линейной геометрии
+пространства модели (рамка, линии гиба, осевые тоже попадают); --layers ограничивает слои для длины реза
+и контуров.
 
 Требуется: ezdxf (python -m pip install ezdxf==1.4.4); для --render также matplotlib.
 Файл открывается в режиме восстановления (ezdxf.recover) — исходный файл не изменяется.
@@ -14,7 +21,7 @@ import argparse
 import json
 import math
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 
 try:
     import ezdxf
@@ -25,6 +32,8 @@ except ImportError:
 
 UNITS = {0: "не задано", 1: "дюймы", 2: "футы", 4: "мм", 5: "см", 6: "м"}
 FLATTEN = 0.05  # мм, точность аппроксимации кривых
+CHAIN_TOL = 0.01  # мм, допуск совпадения концов при сборке контуров из отрезков/дуг
+CURVES = ("LINE", "ARC", "CIRCLE", "LWPOLYLINE", "POLYLINE", "SPLINE", "ELLIPSE")
 
 
 def poly_area(pts) -> float:
@@ -57,7 +66,123 @@ def length_of(e) -> float:
     return 0.0
 
 
-def inspect(path: str, max_texts: int) -> dict:
+def is_curve(e) -> bool:
+    """Линейная геометрия, которая режется (POLYLINE — только 2D/3D-полилиния, не сеть/полигранник)."""
+    t = e.dxftype()
+    if t == "POLYLINE":
+        return bool(getattr(e, "is_2d_polyline", False) or getattr(e, "is_3d_polyline", False))
+    return t in CURVES
+
+
+def is_closed(e) -> bool:
+    """Замкнутость по флагу сущности. У старой POLYLINE флаг — is_closed, у LWPOLYLINE/SPLINE — closed."""
+    t = e.dxftype()
+    if t == "CIRCLE":
+        return True
+    if t == "POLYLINE":
+        return bool(getattr(e, "is_closed", False))
+    if t in ("LWPOLYLINE", "SPLINE"):
+        return bool(getattr(e, "closed", False))
+    if t == "ELLIPSE":
+        span = (e.dxf.get("end_param", 2 * math.pi) - e.dxf.get("start_param", 0.0)) % (2 * math.pi)
+        return span < 1e-6 or abs(span - 2 * math.pi) < 1e-6
+    return False
+
+
+def bbox_of(pts):
+    xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def bbox_inside(inner, outer, tol: float) -> bool:
+    return (inner[0] >= outer[0] - tol and inner[1] >= outer[1] - tol and
+            inner[2] <= outer[2] + tol and inner[3] <= outer[3] + tol)
+
+
+def chain_segments(segs: list[dict], tol: float) -> tuple[list[dict], int]:
+    """Жадная сборка незамкнутых кривых в цепочки по совпадению концов (в пределах tol).
+
+    segs: [{"pts": [(x, y), ...], "len": L, "layer": ...}]. Сегменты при необходимости разворачиваются.
+    Возвращает (цепочки, число узлов, где сходится больше двух концов — сборка там неоднозначна).
+    """
+    cell = max(tol, 1e-9)
+    grid: dict[tuple[int, int], list[tuple[int, int]]] = defaultdict(list)
+
+    def key(p):
+        return math.floor(p[0] / cell), math.floor(p[1] / cell)
+
+    def end_pt(i, end):
+        return segs[i]["pts"][0] if end == 0 else segs[i]["pts"][-1]
+
+    for i, s in enumerate(segs):
+        grid[key(s["pts"][0])].append((i, 0))
+        grid[key(s["pts"][-1])].append((i, 1))
+
+    def near(p, used=None):
+        cx, cy = key(p)
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for i, end in grid.get((cx + dx, cy + dy), ()):
+                    if used is not None and used[i]:
+                        continue
+                    d = math.dist(p, end_pt(i, end))
+                    if d <= tol:
+                        yield d, i, end
+
+    # узлы ветвления (≥ 3 концов в одной точке)
+    seen, branches = set(), 0
+    for i in range(len(segs)):
+        for end in (0, 1):
+            if (i, end) in seen:
+                continue
+            cluster = [(j, e2) for _, j, e2 in near(end_pt(i, end))]
+            seen.update(cluster)
+            if len(cluster) >= 3:
+                branches += 1
+
+    used = [False] * len(segs)
+
+    def take(p):
+        best = min(near(p, used), default=None)
+        if best is None:
+            return None
+        used[best[1]] = True
+        return best[1], best[2]
+
+    chains = []
+    for i in range(len(segs)):
+        if used[i]:
+            continue
+        used[i] = True
+        pts, members, length = list(segs[i]["pts"]), [i], segs[i]["len"]
+
+        def closed_now():
+            return len(pts) > 2 and math.dist(pts[0], pts[-1]) <= tol
+
+        while not closed_now():  # наращивание вперёд
+            nxt = take(pts[-1])
+            if nxt is None:
+                break
+            j, end = nxt
+            p = segs[j]["pts"] if end == 0 else segs[j]["pts"][::-1]
+            pts += p[1:]
+            members.append(j)
+            length += segs[j]["len"]
+        while not closed_now():  # наращивание назад
+            prv = take(pts[0])
+            if prv is None:
+                break
+            j, end = prv
+            p = segs[j]["pts"] if end == 1 else segs[j]["pts"][::-1]
+            pts = p[:-1] + pts
+            members.insert(0, j)
+            length += segs[j]["len"]
+        chains.append({"pts": pts, "len": length, "members": members, "closed": closed_now(),
+                       "layers": sorted({segs[m]["layer"] for m in members})})
+    return chains, branches
+
+
+def inspect(path: str, max_texts: int, tol: float = CHAIN_TOL, layers: list[str] | None = None) -> tuple[dict, object]:
     doc, auditor = recover.readfile(path)
     msp = doc.modelspace()
     ents = list(msp)
@@ -104,31 +229,98 @@ def inspect(path: str, max_texts: int) -> dict:
             m = None
         dims.append({"measurement": m, "text_override": d.dxf.get("text", ""), "layer": d.dxf.layer})
     res["dimensions"] = dims
-    # замкнутые контуры и длина реза
-    contours, cut = [], 0.0
-    for e in ents:
+
+    # ---- замкнутые контуры и длина реза --------------------------------------------------
+    warnings: list[str] = []
+    wanted = {x.strip().lower() for x in layers if x.strip()} if layers else None
+    geo = [e for e in ents if is_curve(e) and (wanted is None or e.dxf.layer.lower() in wanted)]
+    res["layers_filter"] = sorted(wanted) if wanted else None
+    res["chain_tol_mm"] = tol
+    if wanted is not None and not geo:
+        warnings.append(f"На слоях {', '.join(layers)} нет линейной геометрии. Слои файла: {', '.join(res['layers'])}.")
+    contours, cut, segs = [], 0.0, []
+    for e in geo:
         t = e.dxftype()
         L = length_of(e)
         cut += L
-        closed = (t == "CIRCLE") or (t in ("LWPOLYLINE", "POLYLINE") and e.closed) or \
-                 (t in ("SPLINE",) and getattr(e, "closed", False)) or \
-                 (t == "ELLIPSE" and abs((e.dxf.end_param - e.dxf.start_param) - 2 * math.pi) < 1e-6)
-        if closed:
+        if is_closed(e):
             if t == "CIRCLE":
-                area = math.pi * e.dxf.radius ** 2
+                c, r = e.dxf.center, e.dxf.radius
+                area, box = math.pi * r ** 2, (c.x - r, c.y - r, c.x + r, c.y + r)
             else:
                 pts = path_points(e)
                 area = poly_area(pts) if len(pts) > 2 else 0.0
-            contours.append({"type": t, "layer": e.dxf.layer, "area_mm2": round(area, 2), "perimeter_mm": round(L, 2)})
+                box = bbox_of(pts) if pts else (0.0, 0.0, 0.0, 0.0)
+                if t == "ELLIPSE":  # точная площадь полного эллипса π·a·b
+                    a_ = e.dxf.major_axis.magnitude
+                    area = math.pi * a_ * a_ * e.dxf.ratio
+            contours.append({"type": t, "layer": e.dxf.layer, "area_mm2": round(area, 2),
+                             "perimeter_mm": round(L, 2), "_bbox": box})
+        else:
+            pts = path_points(e)
+            if len(pts) >= 2 and L > tol:
+                segs.append({"pts": pts, "len": L, "layer": e.dxf.layer})
+    chains, branches = chain_segments(segs, tol)
+    open_chains, degenerate = [], 0
+    for ch in chains:
+        if not ch["closed"]:
+            open_chains.append(ch)
+            continue
+        area = poly_area(ch["pts"])
+        if area <= tol * ch["len"]:  # «туда-обратно» по дублирующимся линиям
+            degenerate += 1
+            continue
+        contours.append({"type": f"CHAIN({len(ch['members'])})", "layer": ",".join(ch["layers"]),
+                         "area_mm2": round(area, 2), "perimeter_mm": round(ch["len"], 2),
+                         "_bbox": bbox_of(ch["pts"])})
     contours.sort(key=lambda c: -c["area_mm2"])
-    res["closed_contours"] = contours
     res["cut_length_total_mm"] = round(cut, 1)
+    if wanted:
+        res["cut_length_note"] = (f"сумма длин линейной геометрии слоёв: {', '.join(sorted(wanted))} "
+                                  "(геометрия внутри блоков INSERT не учитывается)")
+    else:
+        res["cut_length_note"] = ("сумма длин ВСЕЙ геометрии пространства модели, включая рамку, штамп, линии гиба "
+                                  "и осевые; для длины реза детали ограничьте слои ключом --layers "
+                                  "(геометрия внутри блоков INSERT не учитывается)")
+    open_len = sum(ch["len"] for ch in open_chains)
+    res["open_chains"] = {"count": len(open_chains), "length_mm": round(open_len, 1)}
+    if open_chains:
+        warnings.append(f"Незамкнутые контуры: {len(open_chains)} шт., суммарная длина {open_len:.1f} мм "
+                        f"(концы не сходятся в пределах --tol {tol:g} мм) — линии гиба/осевые/рамка или разрывы контура.")
+    if degenerate:
+        warnings.append(f"Вырожденные замкнутые цепочки нулевой площади: {degenerate} (вероятно, дублирующиеся линии).")
+    if branches:
+        warnings.append(f"Узлов, где сходится больше двух концов: {branches} — сборка контуров неоднозначна, "
+                        "проверьте предпросмотр (--render).")
     if contours:
-        outer = contours[0]["area_mm2"]
-        holes = sum(c["area_mm2"] for c in contours[1:])
-        res["blank_estimate"] = {"outer_area_mm2": outer, "holes_area_mm2": round(holes, 2),
-                                 "net_area_mm2": round(outer - holes, 2), "pierces": len(contours),
-                                 "note": "оценка: наибольший замкнутый контур считается наружным, остальные — отверстиями"}
+        outer = contours[0]
+        holes = [c for c in contours[1:] if bbox_inside(c["_bbox"], outer["_bbox"], tol)]
+        outside = len(contours) - 1 - len(holes)
+        hole_area = sum(c["area_mm2"] for c in holes)
+        note = ("оценка: наибольший замкнутый контур считается наружным, замкнутые контуры внутри его габарита — "
+                "отверстиями")
+        reliable = True
+        if open_chains:
+            ob = bbox_of([p for ch in open_chains for p in ch["pts"]])
+            ob_area = (ob[2] - ob[0]) * (ob[3] - ob[1])
+            if outer["area_mm2"] < ob_area or not bbox_inside(ob, outer["_bbox"], tol):
+                reliable = False
+                warnings.append(f"Незамкнутая геометрия (габарит {ob[2] - ob[0]:.1f} × {ob[3] - ob[1]:.1f} мм) выходит "
+                                "за наибольший замкнутый контур — наружный контур, вероятно, разорван или в файле "
+                                "есть рамка. Проверьте --tol и фильтр слоёв --layers.")
+                note = ("ОЦЕНКА НЕДОСТОВЕРНА: незамкнутая геометрия выходит за наибольший замкнутый контур; " + note)
+        if outside:
+            warnings.append(f"Замкнутых контуров вне габарита наружного: {outside} — не учтены как отверстия "
+                            "(несколько деталей в файле?).")
+        res["blank_estimate"] = {"outer_area_mm2": outer["area_mm2"], "holes_area_mm2": round(hole_area, 2),
+                                 "net_area_mm2": round(outer["area_mm2"] - hole_area, 2), "pierces": 1 + len(holes),
+                                 "reliable": reliable, "note": note}
+    elif open_chains:
+        warnings.append("Замкнутых контуров не найдено — площадь заготовки не оценивается.")
+    for c in contours:
+        c.pop("_bbox", None)
+    res["closed_contours"] = contours
+    res["warnings"] = warnings
     return res, doc
 
 
@@ -140,11 +332,16 @@ def to_md(r: dict) -> str:
     o.append(f"- Сущности: {', '.join(f'{k} {v}' for k, v in r['entities_by_type'].items())}")
     o.append(f"- Слои ({len(r['layers'])}): {', '.join(f'{k} ({v})' for k, v in r['entities_by_layer'].items())}")
     o.append(f"- Блоки: {', '.join(r['blocks']) or '—'}")
-    o.append(f"- Суммарная длина контуров (оценка длины реза): {r['cut_length_total_mm']} мм")
+    o.append(f"- Суммарная длина контуров (оценка длины реза): {r['cut_length_total_mm']} мм — {r['cut_length_note']}")
+    oc = r["open_chains"]
+    o.append(f"- Контуры: замкнутых {len(r['closed_contours'])}, незамкнутых цепочек {oc['count']} "
+             f"({oc['length_mm']} мм); допуск стыковки концов {r['chain_tol_mm']:g} мм")
     if r.get("blank_estimate"):
         b = r["blank_estimate"]
         o.append(f"- Заготовка (оценка): наружный контур {b['outer_area_mm2']} мм², отверстия {b['holes_area_mm2']} мм², "
-                 f"нетто {b['net_area_mm2']} мм², врезок {b['pierces']}")
+                 f"нетто {b['net_area_mm2']} мм², врезок {b['pierces']} — {b['note']}")
+    if r["warnings"]:
+        o += ["", "## Предупреждения"] + [f"- ⚠️ {w}" for w in r["warnings"]]
     if r["block_attributes"]:
         o += ["", "## Атрибуты блоков (штамп/основная надпись)"]
         for a in r["block_attributes"]:
@@ -170,8 +367,14 @@ def main(argv=None) -> int:
     ap.add_argument("--json", help="сохранить полный результат в JSON")
     ap.add_argument("--render", help="сохранить предпросмотр PNG/PDF/SVG (нужен matplotlib)")
     ap.add_argument("--texts", type=int, default=50, help="сколько текстов вывести")
+    ap.add_argument("--tol", type=float, default=CHAIN_TOL,
+                    help=f"допуск совпадения концов при сборке контуров, мм (по умолчанию {CHAIN_TOL})")
+    ap.add_argument("--layers", help="слои через запятую для длины реза и контуров, напр. CUT,0 (по умолчанию все)")
     a = ap.parse_args(argv)
-    r, doc = inspect(a.dxf, a.texts)
+    if a.tol <= 0:
+        ap.error("--tol должен быть > 0")
+    layers = [x for x in a.layers.split(",") if x.strip()] if a.layers else None
+    r, doc = inspect(a.dxf, a.texts, tol=a.tol, layers=layers)
     getattr(sys.stdout, "reconfigure", lambda **_: None)(encoding="utf-8")
     print(to_md(r))
     if a.json:

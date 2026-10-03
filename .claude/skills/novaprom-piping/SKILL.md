@@ -26,7 +26,7 @@ allowed-tools: Bash(python ${CLAUDE_SKILL_DIR}/scripts/pipe_calc.py *) Bash(pyth
 | `wall_gost32388` | t_R = P·D/(2φ_w[σ] + P), [P] — наружный диаметр |
 | `wall_sp36` | δ = n·p·D_н/(2(R1 + n·p)), R1 = R1н·m/(k1·k_н) |
 | `wall_b31_3` | t = PD/(2(SEW + PY)) + c, проверка t < D/6 |
-| `bend_b31_3` | коэффициенты I для интрадоса/экстрадоса отвода |
+| `bend_b31_3` | толщина отвода на интрадосе/экстрадосе по eq. (3c) t = PD/(2(SEW/I + PY)) (P, S, E, W, Y, R, D [, c]); только `t_straight` — приближённо t·I с предупреждением |
 | `liquid_dp` | скорость, Re, λ (Колбрук), ΔP жидкости |
 
 ```bash

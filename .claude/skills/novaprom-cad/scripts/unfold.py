@@ -8,9 +8,10 @@
   saddle  врезка цилиндра в цилиндр (оси перпендикулярны, со смещением e)
 
 Все размеры — мм, углы — градусы. Диаметры — НЕЙТРАЛЬНЫЕ (по середине толщины или по
-k-фактору производства). Для перевода наружного диаметра в нейтральный: --outer D --t s --k k
-(k — доля толщины от внутренней поверхности до нейтрального слоя; значение — по технологии
-производства; 0,5 соответствует срединной поверхности).
+k-фактору производства). Пересчёт наружного диаметра в нейтральный ключами --outer D --t s --k k
+выполняется ТОЛЬКО в mitre (k — доля толщины от внутренней поверхности до нейтрального слоя; значение —
+по технологии производства; 0,5 соответствует срединной поверхности). Для cone, gore, saddle эти ключи
+отклоняются: нейтральные размеры задаются явно (D_нейтр = D_нар − 2·t + 2·k·t).
 
 Вывод: таблица ключевых размеров и координат; --dxf файл.dxf — контур развёртки (нужен ezdxf).
 
@@ -29,14 +30,39 @@ import math
 import sys
 
 
+NEUTRAL_HELP = {
+    "cone": "--D и --d — нейтральные диаметры торцов",
+    "gore": "--r — нейтральный радиус трубы",
+    "saddle": "--rb — нейтральный радиус ответвления, --Rh — радиус магистрали по поверхности контакта",
+}
+
+
 def neutral(args, key: str) -> float:
-    """Нейтральный диаметр из явного значения или из наружного диаметра, толщины и k."""
+    """Нейтральный диаметр из явного значения или из наружного диаметра, толщины и k (только mitre)."""
     val = getattr(args, key, None)
+    given = [n for n in ("outer", "t", "k") if getattr(args, n, None) is not None]
+    if val is not None and given:
+        raise SystemExit(f"Задайте либо --{key} (нейтральный диаметр), либо --outer, --t, --k — не одновременно")
     if val is not None:
         return val
-    if args.outer is not None and args.t is not None and args.k is not None:
-        return args.outer - 2 * args.t + 2 * args.k * args.t
-    raise SystemExit(f"Задайте --{key} (нейтральный диаметр) или --outer, --t, --k")
+    if len(given) != 3:
+        raise SystemExit(f"Задайте --{key} (нейтральный диаметр) или все три ключа --outer, --t, --k")
+    if not 0 <= args.k <= 1:
+        raise SystemExit("--k — доля толщины, требуется 0 ≤ k ≤ 1")
+    if args.t <= 0 or args.outer <= 2 * args.t:
+        raise SystemExit("Требуется t > 0 и наружный диаметр > 2·t")
+    return args.outer - 2 * args.t + 2 * args.k * args.t
+
+
+def reject_outer(args) -> None:
+    """cone/gore/saddle работают только с нейтральными размерами — --outer/--t/--k не игнорируются молча."""
+    given = [f"--{n}" for n in ("outer", "t", "k") if getattr(args, n, None) is not None]
+    if given:
+        raise SystemExit(
+            f"Подкоманда {args.cmd}: {'ключи' if len(given) > 1 else 'ключ'} {', '.join(given)} "
+            f"{'не поддерживаются' if len(given) > 1 else 'не поддерживается'} (пересчёт наружного размера "
+            f"в нейтральный есть только в mitre). Задайте нейтральные размеры явно: {NEUTRAL_HELP[args.cmd]}. "
+            "Пересчёт: D_нейтр = D_нар − 2·t + 2·k·t, k — по технологии производства.")
 
 
 def save_dxf(path: str, polylines: list[list[tuple[float, float]]], arcs=(), lines=()) -> None:
@@ -106,6 +132,9 @@ def cmd_mitre(a) -> None:
         phi = 2 * math.pi * i / n
         rows.append((r * phi, a.L0 + r * math.tan(beta) * math.cos(phi)))
     print("# Развёртка цилиндра с косым срезом\n")
+    if a.outer is not None:
+        print(f"- Нейтральный диаметр из наружного: D = D_нар − 2·t + 2·k·t = {a.outer:g} − 2·{a.t:g} + 2·{a.k:g}·{a.t:g}"
+              f" = {a.D:.2f} мм (k — по технологии производства)")
     print(f"- Нейтральный диаметр D = {a.D:.2f} мм, длина по оси L0 = {a.L0:.2f} мм, угол среза β = {a.beta:.3f}°")
     print(f"- Формула: L(φ) = L0 + r·tg β·cos φ, x = r·φ; ширина развёртки π·D = {math.pi * a.D:.2f} мм")
     print(f"- L max = {a.L0 + r * math.tan(beta):.2f} мм, L min = {a.L0 - r * math.tan(beta):.2f} мм\n")
@@ -174,9 +203,10 @@ def main(argv=None) -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     def common(p):
-        p.add_argument("--outer", type=float, help="наружный диаметр (для расчёта нейтрального)")
-        p.add_argument("--t", type=float, help="толщина листа")
-        p.add_argument("--k", type=float, help="положение нейтрального слоя (доля толщины от внутренней поверхности)")
+        p.add_argument("--outer", type=float, help="наружный диаметр для расчёта нейтрального (только mitre)")
+        p.add_argument("--t", type=float, help="толщина листа (только mitre, вместе с --outer и --k)")
+        p.add_argument("--k", type=float,
+                       help="положение нейтрального слоя, доля толщины от внутренней поверхности (только mitre)")
         p.add_argument("--dxf", help="сохранить контур в DXF")
         p.add_argument("--points", type=int, default=72, help="число точек по окружности")
 
@@ -201,8 +231,10 @@ def main(argv=None) -> int:
     p.add_argument("--e", type=float, default=0.0, help="смещение осей")
     a = ap.parse_args(argv)
     getattr(sys.stdout, "reconfigure", lambda **_: None)(encoding="utf-8")
-    if a.cmd == "mitre" and a.D is None:
+    if a.cmd == "mitre":
         a.D = neutral(a, "D")
+    else:
+        reject_outer(a)
     {"cone": cmd_cone, "mitre": cmd_mitre, "gore": cmd_gore, "saddle": cmd_saddle}[a.cmd](a)
     return 0
 

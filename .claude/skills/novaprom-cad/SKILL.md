@@ -35,12 +35,20 @@ Skill — не CAD-ядро. Claude **не строит** производств
 ## Скрипты
 ```bash
 python ${CLAUDE_SKILL_DIR}/scripts/dxf_inspect.py work/in/part.dxf --render work/out/part.png --json work/out/part.json
+python ${CLAUDE_SKILL_DIR}/scripts/dxf_inspect.py work/in/flat.dxf --layers CUT,0 --tol 0.01
 python ${CLAUDE_SKILL_DIR}/scripts/unfold.py cone   --D 1000 --d 500 --H 500 --dxf work/out/cone.dxf
 python ${CLAUDE_SKILL_DIR}/scripts/unfold.py gore   --r 159.5 --R 480 --angle 90 --n 3 --dxf work/out/gore.dxf
 python ${CLAUDE_SKILL_DIR}/scripts/unfold.py saddle --rb 54 --Rh 159 --e 0 --dxf work/out/saddle.dxf
 python ${CLAUDE_SKILL_DIR}/scripts/unfold.py mitre  --outer 219 --t 8 --k 0.5 --L0 300 --beta 22.5
 ```
-Диаметры для развёрток — нейтральные (k-фактор — по технологии производства, задаётся явно).
+`dxf_inspect.py`: контуры собираются и из отрезков/дуг (развёртки SolidWorks) по совпадению концов в пределах
+`--tol` мм (по умолчанию 0,01). Длина реза суммирует всю линейную геометрию пространства модели (рамка, линии
+гиба, осевые) — для детали ограничить слои `--layers`. Предупреждения о незамкнутых контурах и «ОЦЕНКА
+НЕДОСТОВЕРНА» — разобрать по предпросмотру до использования площади заготовки.
+
+Диаметры для развёрток — нейтральные (k-фактор — по технологии производства, задаётся явно). Пересчёт из
+наружного (`--outer --t --k`) есть только в `mitre`; `cone`, `gore`, `saddle` эти ключи отклоняют — задать
+нейтральные размеры (D_нейтр = D_нар − 2·t + 2·k·t).
 Эксцентрические переходы и «квадрат–круг» — триангуляция в SolidWorks (lofted bends).
 
 ## Спецификация (ГОСТ 2.106) и ведомости

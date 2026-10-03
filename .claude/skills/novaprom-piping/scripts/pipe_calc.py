@@ -10,7 +10,8 @@
   wall_gost32388   технологические трубопроводы, ГОСТ 32388-2013 (наружный диаметр)
   wall_sp36        магистральные трубопроводы, СП 36.13330.2012
   wall_b31_3       ASME B31.3 (для зарубежных ТЗ / сравнения)
-  bend_b31_3       толщина отвода (коэффициенты I по ASME B31.3)
+  bend_b31_3       толщина отвода на интрадосе/экстрадосе, ASME B31.3 eq. (3c) (P, S, E, W, Y, R, D [, c]);
+                   только t_straight — приближённо t·I с предупреждением
   liquid_dp        скорость и потери давления жидкости (Дарси–Вейсбах)
 
 Газовые потоки (Z, рабочий расход, ΔP газа) — скрипт навыка novaprom-gas-hydraulics.
@@ -110,20 +111,56 @@ def wall_b31_3(d: dict) -> CalcReport:
     return rep
 
 
+N_B313_BEND = "ASME B31.3 Process Piping, п. 304.2.1 (отводы), eq. (3c); коэффициенты I — там же"
+EQ3C_KEYS = ("P", "S", "E", "W", "Y")
+
+
 def bend_b31_3(d: dict) -> CalcReport:
     rep = CalcReport(f"Толщина стенки отвода, ASME B31.3 — {d.get('name', '')}")
-    t = rep.get(d, "t_straight", "Расчётная толщина прямой трубы t (без прибавок)", "мм")
+    exact = all(d.get(k) is not None for k in EQ3C_KEYS)
+    if not exact and d.get("t_straight") is None:
+        missing = [k for k in EQ3C_KEYS if d.get(k) is None]
+        raise SystemExit("bend_b31_3: для eq. (3c) задайте P, S, E, W, Y (не хватает: " + ", ".join(missing) +
+                         ") или, для приближённой оценки, t_straight")
     R = rep.get(d, "R", "Радиус гиба по оси R1", "мм")
     D = rep.get(d, "D", "Наружный диаметр D", "мм")
     x = R / D
-    Ii = rep.step("Коэффициент I для внутренней стороны (интрадос)", N_B313, "I = (4·R/D − 1) / (4·R/D − 2)",
+    if 4 * x - 2 <= 0:
+        raise SystemExit("bend_b31_3: требуется R1 > D/2 (иначе коэффициент I для интрадоса не определён)")
+    if exact:
+        P = rep.get(d, "P", "Design pressure P", "МПа")
+        S = rep.get(d, "S", "Allowable stress S (Table A-1)", "МПа")
+        E = rep.get(d, "E", "Quality factor E (Table A-1A/A-1B)", "—")
+        W = rep.get(d, "W", "Weld joint strength reduction factor W", "—")
+        Y = rep.get(d, "Y", "Coefficient Y (Table 304.1.1)", "—")
+    else:
+        t = rep.get(d, "t_straight", "Расчётная толщина прямой трубы t (без прибавок)", "мм")
+    c = rep.get(d, "c", "Sum of allowances c (corrosion, thread/groove)", "мм", required=False)
+    Ii = rep.step("Коэффициент I для внутренней стороны (интрадос)", N_B313_BEND, "I = (4·R1/D − 1) / (4·R1/D − 2)",
                   f"(4·{fmt(x)} − 1) / (4·{fmt(x)} − 2)", (4 * x - 1) / (4 * x - 2), "", "I_инт")
-    Ie = rep.step("Коэффициент I для наружной стороны (экстрадос)", N_B313, "I = (4·R/D + 1) / (4·R/D + 2)",
+    Ie = rep.step("Коэффициент I для наружной стороны (экстрадос)", N_B313_BEND, "I = (4·R1/D + 1) / (4·R1/D + 2)",
                   f"(4·{fmt(x)} + 1) / (4·{fmt(x)} + 2)", (4 * x + 1) / (4 * x + 2), "", "I_экстр")
-    rep.step("Требуемая толщина на интрадосе (без прибавок)", N_B313, "t_инт = t·I_инт",
-             f"{fmt(t)}·{fmt(Ii)}", t * Ii, "мм", "t_инт")
-    rep.step("Требуемая толщина на экстрадосе (без прибавок)", N_B313, "t_экстр = t·I_экстр",
-             f"{fmt(t)}·{fmt(Ie)}", t * Ie, "мм", "t_экстр")
+    res = {}
+    for side, I, sym in (("интрадосе", Ii, "t_инт"), ("экстрадосе", Ie, "t_экстр")):
+        if exact:
+            res[sym] = rep.step(f"Расчётная толщина на {side} (без прибавок)", N_B313_BEND,
+                                "t = P·D / (2·((S·E·W)/I + P·Y))",
+                                f"{fmt(P)}·{fmt(D)} / (2·(({fmt(S)}·{fmt(E)}·{fmt(W)})/{fmt(I)} + {fmt(P)}·{fmt(Y)}))",
+                                P * D / (2 * (S * E * W / I + P * Y)), "мм", sym)
+        else:
+            res[sym] = rep.step(f"Толщина на {side} (без прибавок) — приближённо (t·I), сверить с eq. 3c",
+                                N_B313_BEND + " — приближение t·I, не формула стандарта",
+                                f"{sym} ≈ t·I", f"{fmt(t)}·{fmt(I)}", t * I, "мм", sym)
+    if c is not None:
+        for side, sym in (("интрадосе", "t_инт"), ("экстрадосе", "t_экстр")):
+            rep.step(f"Минимальная требуемая толщина на {side}", N_B313, "t_m = t + c",
+                     f"{fmt(res[sym])} + {fmt(c)}", res[sym] + c, "мм", sym.replace("t_", "t_m.", 1))
+    if not exact:
+        given = [k for k in EQ3C_KEYS if d.get(k) is not None]
+        rep.warn("Толщина отвода получена ПРИБЛИЖЁННО как t·I (масштабирование толщины прямой трубы), а не по "
+                 "ASME B31.3 eq. (3c) t = P·D/(2·((S·E·W)/I + P·Y)). На экстрадосе (I < 1) t·I меньше, чем по eq. (3c), "
+                 "т.е. не в запас. Задайте P, S, E, W, Y для точного расчёта"
+                 + (f" (сейчас заданы только: {', '.join(given)})." if given else "."))
     rep.warn("Для отводов по ГОСТ 17375/ГОСТ 30753 и отводов для КПП СОД (крутоизогнутые/гнутые) "
              "использовать требования стандарта на изделие и ОТТ заказчика; учесть утонение при гибке.")
     return rep

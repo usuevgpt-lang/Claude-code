@@ -9,6 +9,7 @@
               market   — РЫНОЧНЫЕ ДАННЫЕ (КП поставщика, прайс, счёт; с датой и источником)
               assumed  — ДОПУЩЕНИЕ (экспертная оценка, аналог, укрупнённый норматив)
   category    material | purchased | labor | service | other
+              (регистр и пробелы не важны; неизвестная категория → предупреждение и «other»)
   source      откуда взято значение (документ, поставщик, дата)
   uncertainty относительная неопределённость цены/количества (0.1 = ±10 %)
 
@@ -28,6 +29,8 @@
 }
 
 price_kind (необязательно) — происхождение цены, если оно отличается от происхождения количества.
+kind/price_kind нормализуются к нижнему регистру; неизвестный kind → предупреждение и «assumed».
+overheads[].base: labor | materials (material + purchased) | direct; иное — ошибка.
 """
 from __future__ import annotations
 
@@ -37,6 +40,13 @@ import sys
 from collections import defaultdict
 
 KIND_TITLE = {"calc": "РАСЧЁТНЫЕ ДАННЫЕ", "market": "РЫНОЧНЫЕ ДАННЫЕ", "assumed": "ДОПУЩЕНИЯ"}
+CATEGORIES = ("material", "purchased", "labor", "service", "other")
+OVERHEAD_BASES = ("labor", "materials", "direct")
+
+
+def norm(x) -> str:
+    """Ключевое слово без учёта регистра и пробелов (Excel SUMIF тоже не различает регистр)."""
+    return str(x).strip().lower() if x is not None else ""
 
 
 def val(x, default=None):
@@ -66,23 +76,47 @@ def compute(data: dict) -> dict:
             warnings.append(f"«{it['name']}»: неопределённость не задана (принято 0).")
         if not it.get("source"):
             warnings.append(f"«{it['name']}»: не указан источник.")
-        if it.get("kind") not in KIND_TITLE:
-            warnings.append(f"«{it['name']}»: kind должен быть calc|market|assumed.")
-        items.append({**it, "cost": cost, "low": cost * (1 - unc), "high": cost * (1 + unc), "unc": unc})
+        cat = norm(it.get("category"))
+        if cat not in CATEGORIES:
+            what = f"категория «{it['category']}» не из списка" if it.get("category") is not None else \
+                "категория не задана, допустимо"
+            warnings.append(f"«{it['name']}»: {what} {'|'.join(CATEGORIES)} — отнесена к «other».")
+            cat = "other"
+        kind = norm(it.get("kind"))
+        if kind not in KIND_TITLE:
+            warnings.append(f"«{it['name']}»: kind «{it.get('kind', '')}» должен быть calc|market|assumed — "
+                            "позиция отнесена к ДОПУЩЕНИЯМ (assumed).")
+            kind = "assumed"
+        extra = {"category": cat, "kind": kind}
+        if it.get("price_kind") is not None:
+            pk = norm(it["price_kind"])
+            if pk not in KIND_TITLE:
+                warnings.append(f"«{it['name']}»: price_kind «{it['price_kind']}» должен быть calc|market|assumed.")
+            extra["price_kind"] = pk
+        items.append({**it, **extra, "cost": cost, "low": cost * (1 - unc), "high": cost * (1 + unc), "unc": unc})
 
     by_cat = defaultdict(float)
     for it in items:
-        by_cat[it.get("category", "other")] += it["cost"]
+        by_cat[it["category"]] += it["cost"]
     direct = sum(it["cost"] for it in items)
-    bases = {"labor": by_cat["labor"], "materials": by_cat["material"] + by_cat["purchased"], "direct": direct}
+    bases = {"labor": by_cat.get("labor", 0.0), "materials": by_cat.get("material", 0.0) + by_cat.get("purchased", 0.0),
+             "direct": direct}
 
     overheads = []
     for oh in data.get("overheads", []):
-        base = bases[oh["base"]]
-        pct = float(val(oh.get("percent"), oh.get("percent")))
-        overheads.append({**oh, "amount": base * pct / 100, "base_value": base, "pct": pct})
+        name = oh.get("name", "без названия")
+        bkey = norm(oh.get("base"))
+        if bkey not in bases:
+            raise SystemExit(f"Накладные «{name}»: неизвестная база «{oh.get('base')}». "
+                             f"Допустимо: {' | '.join(OVERHEAD_BASES)} (materials = material + purchased).")
+        base = bases[bkey]
+        pct = val(oh.get("percent"))
+        if pct is None:
+            raise SystemExit(f"Накладные «{name}»: не задан percent.")
+        pct = float(pct)
+        overheads.append({**oh, "name": name, "base": bkey, "amount": base * pct / 100, "base_value": base, "pct": pct})
         if not oh.get("source"):
-            warnings.append(f"Накладные «{oh['name']}»: не указан источник ставки.")
+            warnings.append(f"Накладные «{name}»: не указан источник ставки.")
     cost_price = direct + sum(o["amount"] for o in overheads)
     cont_pct = float(val(data.get("contingency_percent"), 0.0))
     contingency = cost_price * cont_pct / 100

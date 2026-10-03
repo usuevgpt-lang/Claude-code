@@ -9,7 +9,8 @@
 размеры труб — мм, длина труб — м.
 
 Типы расчётов (cases[].type):
-  heat_balance   тепловой баланс, неизвестная температура или мощность
+  heat_balance   тепловой баланс: Φ по полностью заданной стороне; одна неизвестная (G, cp, t_in или t_out)
+                 другой стороны; проверки Φ > 0 и небаланса
   lmtd           среднелогарифмический температурный напор, поправка F (1 ход в кожухе / 2,4.. в трубах)
   overall_u      коэффициент теплопередачи по термическим сопротивлениям
   area           требуемая площадь теплообмена с запасом
@@ -45,31 +46,61 @@ def heat_balance(d: dict) -> CalcReport:
             "t_out": rep.get(s, "t_out", f"Температура на выходе ({label})", "°C", required=False),
         }
     h, c = sides["hot"], sides["cold"]
-    Q = None
-    if None not in (h["G"], h["cp"], h["t_in"], h["t_out"]):
+    hint = "проверьте вход/выход температур: горячий охлаждается (t_вх > t_вых), холодный нагревается (t_вых > t_вх)"
+    Q = Qc = None
+    if None not in h.values():
         Q = rep.step("Тепловая мощность по горячему теплоносителю", N_BAL, "Φ = G_г·c_г·(t_г.вх − t_г.вых)",
                      f"{fmt(h['G'])}·{fmt(h['cp'])}·({fmt(h['t_in'])} − {fmt(h['t_out'])})",
                      h["G"] * h["cp"] * (h["t_in"] - h["t_out"]), "кВт", "Φ")
-    if None not in (c["G"], c["cp"], c["t_in"], c["t_out"]):
+        rep.check(f"Φ_г = {fmt(Q)} кВт > 0", Q > 0, hint)
+    if None not in c.values():
         Qc = rep.step("Тепловая мощность по холодному теплоносителю", N_BAL, "Φ = G_х·c_х·(t_х.вых − t_х.вх)",
                       f"{fmt(c['G'])}·{fmt(c['cp'])}·({fmt(c['t_out'])} − {fmt(c['t_in'])})",
                       c["G"] * c["cp"] * (c["t_out"] - c["t_in"]), "кВт", "Φ_х")
-        if Q is None:
-            Q = Qc
-        else:
-            loss = rep.get(d, "loss_frac", "Допустимый небаланс (теплопотери), доля", "—", default=0.05)
-            rep.check(f"Небаланс |Φ_г − Φ_х|/Φ_г = {fmt(abs(Q - Qc) / Q)} ≤ {fmt(loss)}", abs(Q - Qc) / Q <= loss)
+        rep.check(f"Φ_х = {fmt(Qc)} кВт > 0", Qc > 0, hint)
+    if Q is not None and Qc is not None:
+        loss = rep.get(d, "loss_frac", "Допустимый небаланс (теплопотери), доля", "—", default=0.05)
+        den = max(abs(Q), abs(Qc))
+        imb = abs(Q - Qc) / den if den else 0.0
+        rep.check(f"Небаланс |Φ_г − Φ_х|/max(|Φ_г|, |Φ_х|) = {fmt(imb)} ≤ {fmt(loss)}", imb <= loss)
+    if Q is None:
+        Q = Qc
     if Q is None:
         raise SystemExit("Недостаточно данных: полностью задайте хотя бы одну сторону (G, cp, t_in, t_out).")
+    if h["t_in"] is not None and c["t_in"] is not None:
+        rep.check(f"t_г.вх = {fmt(h['t_in'])} > t_х.вх = {fmt(c['t_in'])} °C", h["t_in"] > c["t_in"],
+                  "теплота передаётся от горячего к холодному — " + hint)
     for side, s, sign in (("горячего", h, -1), ("холодного", c, 1)):
-        if s["G"] is None and None not in (s["cp"], s["t_in"], s["t_out"]):
-            rep.step(f"Расход {side} теплоносителя", N_BAL, "G = Φ/(c_p·|Δt|)",
-                     f"{fmt(Q)}/({fmt(s['cp'])}·{fmt(abs(s['t_out'] - s['t_in']))})",
-                     Q / (s["cp"] * abs(s["t_out"] - s["t_in"])), "кг/с", "G")
-        elif s["t_out"] is None and None not in (s["G"], s["cp"], s["t_in"]):
+        missing = [k for k, v in s.items() if v is None]
+        if not missing:
+            continue
+        if len(missing) > 1:
+            rep.warn(f"Сторона {side} теплоносителя: не заданы {', '.join(missing)} — из баланса определяется только "
+                     "одна неизвестная, сторона не рассчитана. Задайте недостающие величины.")
+            continue
+        if Q <= 0:
+            rep.warn(f"Неизвестная {missing[0]} {side} теплоносителя не рассчитана: Φ ≤ 0 ({hint}).")
+            continue
+        k = missing[0]
+        if k in ("G", "cp"):
+            dt = sign * (s["t_out"] - s["t_in"])  # > 0 при правильном направлении
+            if not rep.check(f"Направление изменения температуры {side} теплоносителя: Δt = {fmt(dt)} К > 0",
+                             dt > 0, hint):
+                continue
+            if k == "G":
+                rep.step(f"Расход {side} теплоносителя", N_BAL, "G = Φ/(c_p·|Δt|)",
+                         f"{fmt(Q)}/({fmt(s['cp'])}·{fmt(dt)})", Q / (s["cp"] * dt), "кг/с", "G")
+            else:
+                rep.step(f"Теплоёмкость {side} теплоносителя", N_BAL, "c_p = Φ/(G·|Δt|)",
+                         f"{fmt(Q)}/({fmt(s['G'])}·{fmt(dt)})", Q / (s["G"] * dt), "кДж/(кг·К)", "c_p")
+        elif k == "t_out":
             rep.step(f"Температура {side} теплоносителя на выходе", N_BAL, "t_вых = t_вх ± Φ/(G·c_p)",
                      f"{fmt(s['t_in'])} {'+' if sign > 0 else '−'} {fmt(Q)}/({fmt(s['G'])}·{fmt(s['cp'])})",
                      s["t_in"] + sign * Q / (s["G"] * s["cp"]), "°C", "t_вых")
+        else:  # t_in
+            rep.step(f"Температура {side} теплоносителя на входе", N_BAL, "t_вх = t_вых ∓ Φ/(G·c_p)",
+                     f"{fmt(s['t_out'])} {'−' if sign > 0 else '+'} {fmt(Q)}/({fmt(s['G'])}·{fmt(s['cp'])})",
+                     s["t_out"] - sign * Q / (s["G"] * s["cp"]), "°C", "t_вх")
     return rep
 
 
