@@ -32,7 +32,7 @@ powershell -ExecutionPolicy Bypass -File D:\Claude-code\scripts\setup-windows.ps
 ## Проверка
 ```
 python scripts/validate_config.py
-python tests/test_skills.py
+python -m unittest discover -s tests -p "test_*.py"
 ```
 
 ## Сторонние плагины

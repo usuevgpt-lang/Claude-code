@@ -39,13 +39,7 @@ def frontmatter(path: Path) -> tuple[dict, str]:
         errors.append(f"{path}: нет YAML-фронтматтера")
         return {}, text
     if yaml is None:
-        warnings.append("PyYAML не установлен — разбор фронтматтера упрощён")
-        data = {}
-        for line in m.group(1).splitlines():
-            if ":" in line and not line.startswith(" "):
-                k, v = line.split(":", 1)
-                data[k.strip()] = v.strip()
-        return data, text[m.end():]
+        raise SystemExit("Нужен PyYAML: python -m pip install pyyaml (без него проверка фронтматтера ненадёжна)")
     try:
         data = yaml.safe_load(m.group(1)) or {}
     except yaml.YAMLError as e:
@@ -143,9 +137,12 @@ def check_settings_sync() -> None:
 
 
 SECRET_PATTERNS = [
-    (re.compile(r"https?://[^\s\"']+/rest/\d+/[a-z0-9]{10,}/", re.I), "URL вебхука Bitrix24 с кодом"),
-    (re.compile(r"-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----"), "приватный ключ"),
-    (re.compile(r"(api[_-]?key|token|password)\s*[:=]\s*['\"][A-Za-z0-9_\-]{20,}['\"]", re.I), "похоже на токен/пароль"),
+    (re.compile(r"https?://[^\s\"'<>]+/rest/\d+/[a-z0-9]{10,}(?:/|\b)", re.I), "URL вебхука Bitrix24 с кодом"),
+    (re.compile(r"-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"), "приватный ключ"),
+    (re.compile(r"(api[_-]?key|token|secret|password|passwd)\s*[:=]\s*['\"]?(?!\$\{)[A-Za-z0-9_\-./+]{20,}", re.I),
+     "похоже на токен/пароль"),
+    (re.compile(r"\b(sk-ant-[A-Za-z0-9_\-]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9\-]{20,})"),
+     "ключ доступа (Anthropic/GitHub/AWS/Slack)"),
 ]
 
 

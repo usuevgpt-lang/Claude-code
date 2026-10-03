@@ -37,11 +37,15 @@ function Copy-Tree($src, $dst) {
 }
 
 # 0. Python is required by the calculation scripts and by the safety hook
-$python = Get-Command python -ErrorAction SilentlyContinue
+# "python" from WindowsApps is the Microsoft Store stub, not a real interpreter.
+$python = Get-Command python -ErrorAction SilentlyContinue |
+    Where-Object { $_.Source -notlike '*\WindowsApps\*' } | Select-Object -First 1
 if ($python) {
-    Write-Host "[OK] Python: $(& python --version 2>&1)"
+    $pyVersion = cmd /c "python --version 2>&1"
+    Write-Host "[OK] Python: $pyVersion ($($python.Source))"
 } else {
-    Write-Warning 'Python not found. Install Python 3.11+ from python.org (tick "Add python.exe to PATH"). Without it the calculation scripts and the safety hook will not run.'
+    $python = $null
+    Write-Warning 'Python not found (or only the Microsoft Store stub). Install Python 3.11+ from python.org and tick "Add python.exe to PATH". The safety hook calls "python": without it the hook does not run and the calculation scripts do not work. Then run this script again.'
 }
 
 # 1. Skills -> %USERPROFILE%\.claude\skills (a replaced skill folder is moved to $backupDir)
@@ -71,13 +75,18 @@ Copy-Item -Force (Join-Path $repoRoot 'global\NOVAPROM.md') $novaDir
 $userClaudeMd = Join-Path $claudeDir 'CLAUDE.md'
 $importLine = '@~/.claude/novaprom/NOVAPROM.md'
 if (Test-Path $userClaudeMd) {
-    $content = Get-Content $userClaudeMd -Raw
+    $content = [System.IO.File]::ReadAllText($userClaudeMd)   # detects UTF-8/UTF-16 by BOM
     if ($content -notmatch [regex]::Escape($importLine)) {
         Copy-Item -Force $userClaudeMd "$userClaudeMd.bak-$stamp"
-        [System.IO.File]::AppendAllText($userClaudeMd, "`r`n# НОВАПРОМ`r`n$importLine`r`n", $utf8NoBom)
+        $head = ([System.IO.File]::ReadAllBytes($userClaudeMd) | Select-Object -First 2) -join ','
+        if (($head -eq '255,254') -or ($head -eq '254,255')) {
+            # UTF-16 file: rewrite as UTF-8 so the appended line does not mix encodings
+            [System.IO.File]::WriteAllText($userClaudeMd, $content, $utf8NoBom)
+        }
+        [System.IO.File]::AppendAllText($userClaudeMd, "`r`n# NOVAPROM`r`n$importLine`r`n", $utf8NoBom)
     }
 } else {
-    [System.IO.File]::WriteAllText($userClaudeMd, "# НОВАПРОМ`r`n$importLine`r`n", $utf8NoBom)
+    [System.IO.File]::WriteAllText($userClaudeMd, "# NOVAPROM`r`n$importLine`r`n", $utf8NoBom)
 }
 Write-Host "[OK] Routing rules imported in $userClaudeMd"
 

@@ -197,7 +197,11 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
    рекурсивного удаления, force-push, `git reset --hard`, SSH/SCP/rsync, изменяющих SQL, обращений к `/rest/` Bitrix24
    в обход read-only клиента, POST/PUT/DELETE-запросов, установки пакетов (pip/npm/npx/winget), подключения MCP/плагинов,
    автоматизации SolidWorks и конвертеров, доступа к файлам секретов, записи в защищённые папки, отправки/удаления/
-   публикации через MCP (Gmail, Drive, PandaDoc…). Подтверждение запрашивается даже в auto mode.
+   публикации и создания через MCP (Gmail, Drive, GitHub, Gamma, Canva, SlidesGPT, PandaDoc…); операции чтения MCP
+   проходят без вопросов. Подтверждение запрашивается даже в auto mode. Хук «закрыт при сбое»: если вход не
+   разобран или проверка упала, он просит подтверждение; читает stdin и список путей в UTF-8/UTF-16/cp1251,
+   поэтому работает на русской Windows. 79 сценариев (опасные/безопасные команды, режим Bitrix24, кодировки)
+   покрыты тестами `tests/test_guard.py`. Для работы хука нужен `python` в PATH (не заглушка Microsoft Store).
 2. **Профиль `bitrix-readonly`** у субагента bitrix-auditor: сеть, SSH, БД и PHP — запрещены, REST — только через
    `b24_readonly.py` (белый список методов чтения, `batch` запрещён, журнал вызовов без токена).
 3. **Правила `ask`/`deny`** в настройках дублируют хук (на случай отсутствия Python) и запрещают чтение `.env`,
@@ -247,7 +251,7 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
    claude mcp add chrome-devtools --scope user -- cmd /c npx -y chrome-devtools-mcp@1.10.1 --isolated --no-usage-statistics --no-performance-crux
    ```
 9. Проверка: в Claude Code — `/skills`, `/agents`, `/hooks`; в репозитории — `python scripts/validate_config.py`
-   и `python tests/test_skills.py`.
+   и `python -m unittest discover -s tests -p "test_*.py"`.
 
 ## 8. Как пользоваться (примеры запросов)
 

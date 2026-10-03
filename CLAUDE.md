@@ -18,7 +18,8 @@
 ## Правила для этого репозитория
 - Репозиторий **публичный**: никаких документов заказчиков, цен, себестоимости, чертежей, токенов, паролей,
   персональных данных. Только навыки, скрипты, шаблоны.
-- Перед коммитом: `python scripts/validate_config.py` и `python tests/test_skills.py` (или `python -m pytest tests -q`).
+- Перед коммитом: `python scripts/validate_config.py` (нужен PyYAML) и `python -m unittest discover -s tests -p "test_*.py"`
+  (расчёты, хук, слияние настроек, CAD/смета/теплообмен) + `python .claude/skills/svg-icons/scripts/test_check_svg.py`.
 - Сторонний код вендорится только с `NOTICE.md` (источник, коммит, лицензия, изменения) после `novaprom-tool-vetting`.
 - Описание навыка — блочным скаляром YAML (`description: >-`), не начинать значение с кавычки.
 - Общий модуль отчётов `_calcreport.py` одинаков во всех инженерных навыках; эталон —

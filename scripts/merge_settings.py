@@ -67,10 +67,11 @@ def merge(cur: dict, prop: dict, disable: list[str], drop: list[str]) -> tuple[d
     hooks = dict(out.get("hooks") or {})
     for event, groups in (prop.get("hooks") or {}).items():
         current = list(hooks.get(event) or [])
-        current_has = any(has_novaprom_hook(g) for g in current)
-        if not current_has:
-            current += [g for g in groups if has_novaprom_hook(g)]
-            log.append(f"hooks.{event}: добавлен хук НОВАПРОМ ({len(groups)} групп)")
+        ours_old = [g for g in current if has_novaprom_hook(g)]
+        ours_new = [g for g in groups if has_novaprom_hook(g)]
+        if ours_old != ours_new:   # добавить или обновить группы НОВАПРОМ, чужие хуки не трогать
+            current = [g for g in current if not has_novaprom_hook(g)] + ours_new
+            log.append(f"hooks.{event}: {'обновлены' if ours_old else 'добавлены'} хуки НОВАПРОМ ({len(ours_new)} групп)")
         hooks[event] = current
     if hooks:
         out["hooks"] = hooks
