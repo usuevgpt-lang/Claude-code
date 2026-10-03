@@ -1,0 +1,14 @@
+{
+  "name": "novaprom",
+  "description": "Локальный маркетплейс НОВАПРОМ: плагины, которые включаются по проектам (маркетинг и SEO сайта).",
+  "owner": {
+    "name": "НОВАПРОМ"
+  },
+  "plugins": [
+    {
+      "name": "novaprom-marketing",
+      "source": "./plugins/novaprom-marketing",
+      "description": "Маркетинг промышленного B2B, SEO (Яндекс), контент, CRO, аналитика, конкуренты, JTBD — 16 навыков (15 из coreyhaines31/marketingskills, MIT, с адаптацией + jtbd-industrial) и 2 субагента."
+    }
+  ]
+}
