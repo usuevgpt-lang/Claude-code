@@ -97,7 +97,7 @@ Run commands from the project root. `${CLAUDE_SKILL_DIR}` is this skill's folder
          --sizes 106 239 --dpr 2 --webp --out-dir icons-work/<name>/export
      ```
    - The same with the CLI tools: `resvg -w 478 in.svg out.png`, then `cwebp -lossless out.png -o out.webp`.
-   - ICO: `python3 -c "from PIL import Image; Image.open('x-256.png').save('favicon.ico', sizes=[(16,16),(32,32),(48,48)])"`. For a full favicon/OG set, use a web-assets skill if one is installed.
+   - ICO: `python3 -c "from PIL import Image; Image.open('x-256.png').save('favicon.ico', sizes=[(16,16),(32,32),(48,48)])"`. For a full favicon/OG set, use the `web-assets` skill.
 7. **Report:**
    - the files written;
    - bytes before and after SVGO;
