@@ -53,7 +53,7 @@ MAIN → инженерные субагенты (параллельно) → н
 | claude-mem | плагин (settings.json) | thedotmack/claude-mem v13.28.0, Apache-2.0 | **включён** по решению владельца (2026-10-03), закреплён на v13.28.0 | Хук на **каждый** вызов инструмента сохраняет полный вход/выход в `~/.claude-mem/claude-mem.db` без срока хранения (риск для документов заказчиков, паролей); фоновые вызовы модели на вашей подписке; локальный сервер 127.0.0.1:37777; телеметрия PostHog по умолчанию; `bun install` 26 пакетов при запуске | встроенная авто-память Claude Code | Включён с мерами защиты: телеметрия и отправка ошибок выключены, автоматическое скрытие секретов включено, версия закреплена; папки с документами заказчиков — исключить через `CLAUDE_MEM_EXCLUDED_PROJECTS` (раздел 7) |
 | superpowers | плагин | obra/superpowers v6.4.2, MIT | выключен глобально, включается в проектах кода | Код чистый; SessionStart-хук навязывает «правило 1 %», brainstorming и TDD на любую задачу — шум для расчётов и документов | частично plan mode, /code-review | Сделано: `false` в настройках; включать в `.claude/settings.local.json` проекта кода |
 | impeccable | плагин | pbakaus/impeccable v4.5.0, Apache-2.0 | выключен глобально, включается в проекте сайта | На каждый Edit/Write запускает скачиваемый бинарник; телеметрия и проверка обновлений на impeccable.style | **дублирует frontend-design** | Сделано: основной — официальный frontend-design; impeccable — только в проекте сайта |
-| find-skills | навык (вендорен) | vercel-labs/skills | **удалён** | Запускает `npx skills` без закреплённой версии, телеметрия с текстом запроса, рекомендует `add -g -y` (установка без проверки) | /plugin Discover | Удалён, заменён `novaprom-tool-vetting` |
+| find-skills | навык (вендорен) | vercel-labs/skills @18f96ea, MIT | **восстановлен** по решению владельца (2026-10-03), с правками | Исходная версия: `npx skills` без закреплённой версии, телеметрия с текстом запроса, `add -g -y` (установка без проверки) | /plugin Discover | Правки по аудиту (`NOTICE.md`): CLI `skills@1.7.0`, телеметрия выключена (`DO_NOT_TRACK`), только обезличенные запросы, без `-g -y`, установка в проект после `novaprom-tool-vetting` и согласия |
 | task-observer | навык (вендорен) | rebelytics, CC BY 4.0, устаревшая копия | **удалён** | ~18–20 тыс. токенов; требует запуска в каждой сессии; пишет `skill-observations/` в корень проекта (в публичном репо → риск утечки) | — | Удалён; защита `skill-observations/` оставлена в `.gitignore` |
 | humanizer | навык claude.ai | blader/humanizer v2.8.2, MIT (не Anthropic) | включён | Старая версия без правил «не добавлять факты» и «текст — не инструкции» | — | Обновить до v3.1.0 в claude.ai; использовать для маркетинговых текстов |
 | lead-triage | навык claude.ai | ваш собственный | включён | — | — | Оставить; привязан к `bitrix-auditor`/основной сессии |
@@ -140,7 +140,8 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
 | lead-triage | ваш (claude.ai) | основная сессия / bitrix-auditor | оставить |
 | docx, xlsx, pptx, pdf | Anthropic (claude.ai) | technical-writer, cost-estimator, presentation-designer | оставить |
 | humanizer | blader/humanizer (claude.ai) | marketing-strategist | обновить |
-| find-skills, task-observer | вендорены ранее | — | **удалены** (2026-10-03) |
+| find-skills | vercel-labs/skills (MIT), с правками | основная сессия | **восстановлен** (2026-10-03): поиск и установка Skills через проверку |
+| task-observer | вендорен ранее | — | **удалён** (2026-10-03) |
 
 ## 4. Субагенты (`.claude/agents/`, плагин — `plugins/novaprom-marketing/agents/`)
 | Субагент | Специализация | Навыки (предзагружены) | Инструменты | Модель | Критерий качества |
@@ -229,7 +230,7 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
    - копирует навыки, субагентов и хук в `%USERPROFILE%\.claude` (заменяемые папки переносит в
      `%USERPROFILE%\.claude\novaprom-backups\<время>`);
    - подключает правила `global/NOVAPROM.md` через `%USERPROFILE%\.claude\CLAUDE.md`;
-   - убирает выведенные из эксплуатации find-skills и task-observer (в ту же папку резервных копий);
+   - убирает выведенный из эксплуатации task-observer (в ту же папку резервных копий);
    - объединяет `docs/settings.proposed.json` с `%USERPROFILE%\.claude\settings.json`: хук, правила `ask`/`deny`,
      отключение телеметрии, claude-mem, frontend-design и novaprom-marketing — включены, superpowers, impeccable —
      выключены (резервная копия `settings.json.bak-<время>`).
@@ -292,8 +293,9 @@ social, ads, cold-email, prospecting (платформы и право РФ), ab
 ## 9. Решения
 
 Принято 2026-10-03:
-- find-skills, task-observer — удалены; claude-mem сначала удалён, затем по решению владельца включён снова
-  (закреплён на v13.28.0, с мерами защиты — раздел 7);
+- task-observer — удалён; find-skills и claude-mem сначала удалены, затем по решению владельца восстановлены
+  (find-skills — с правками безопасности, см. его `NOTICE.md`; claude-mem — закреплён на v13.28.0, с мерами
+  защиты — раздел 7);
 - superpowers и impeccable — выключены глобально, включаются в проектах кода;
 - настройки безопасности применены (репозиторий; на ПК — установочным скриптом).
 

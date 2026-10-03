@@ -54,6 +54,7 @@
 | Позиционирование, JTBD, конкуренты, исследования клиентов | плагин `novaprom-marketing` (product-marketing, jtbd-industrial…) | `marketing-strategist` |
 | Bitrix24 (коробка): CRM, процессы, права, аудит | `novaprom-bitrix-audit` (+ `lead-triage` для лидов) | `bitrix-auditor` |
 | Незнакомый код (PHP/JS/HTML/CSS, MODX, Bitrix) | `explain-code` | `web-developer` |
+| Найти готовый Skill (skills.sh) | `find-skills` → `novaprom-tool-vetting` | — (основная сессия) |
 | Новый сторонний инструмент | `novaprom-tool-vetting` | — (основная сессия) |
 
 Простые вопросы — отвечать напрямую, без субагентов. Субагента вызывать, когда задача объёмная, требует

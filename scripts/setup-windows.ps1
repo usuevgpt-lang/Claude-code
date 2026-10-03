@@ -6,7 +6,7 @@
 #
 # Security settings from docs/settings.proposed.json (hook, ask/deny rules, telemetry off,
 # plugins) are merged into %USERPROFILE%\.claude\settings.json by scripts/merge_settings.py.
-# Retired skills (find-skills, task-observer) are moved aside.
+# The retired skill task-observer is moved aside.
 #
 # Run from the repository root:
 #   powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1
@@ -90,9 +90,9 @@ if (Test-Path $userClaudeMd) {
 }
 Write-Host "[OK] Routing rules imported in $userClaudeMd"
 
-# 5. Remove skills retired from the environment (find-skills, task-observer).
+# 5. Remove skills retired from the environment (task-observer).
 #    They are moved to $backupDir, not deleted.
-foreach ($old in 'find-skills', 'task-observer') {
+foreach ($old in @('task-observer')) {
     $path = Join-Path $claudeDir "skills\$old"
     if (Test-Path $path) {
         Backup-Item $path 'skills-removed'
