@@ -1,0 +1,9 @@
+{"title": "Фильтр-сепаратор ФС-1000-6,3 (пример)", "currency": "руб.", "date": "2026-10-03",
+ "items": [
+  {"group": "Металлопрокат", "name": "Лист 09Г2С s=22", "category": "material", "kind": "calc", "qty": 2102, "unit": "кг", "waste": 0.12, "unit_price": 115, "price_kind": "market", "source": "масса — vessel_calc; цена — пример", "uncertainty": 0.08},
+  {"group": "Комплектующие", "name": "Фильтроэлемент коалесцирующий", "category": "purchased", "kind": "market", "qty": 12, "unit": "шт", "unit_price": 38000, "source": "пример КП", "uncertainty": 0.05},
+  {"group": "Трудоёмкость", "name": "Сварка", "category": "labor", "kind": "assumed", "qty": 180, "unit": "н·ч", "unit_price": 1500, "source": "аналог", "uncertainty": 0.25},
+  {"group": "Испытания", "name": "НК (РК+УЗК)", "category": "service", "kind": "market", "qty": 1, "unit": "компл", "unit_price": 160000, "source": "пример", "uncertainty": 0.1}
+ ],
+ "overheads": [{"name": "Цеховые накладные", "base": "labor", "percent": 120, "source": "пример"}],
+ "contingency_percent": 5, "margin_percent": 20, "vat_percent": {"value": 22, "source": "проверить"}}
